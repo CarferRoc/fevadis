@@ -86,6 +86,18 @@ export interface Message {
     created_at: string;
 }
 
+// ─── Info Documents (subidos por admin, visibles para todos) ────────────────
+export interface InfoDocument {
+    id: string;
+    title: string;
+    category: string;
+    url: string;            // storage path dentro del bucket 'documents'
+    file_type: string | null;
+    file_size: number | null;
+    uploaded_by: string | null;
+    created_at: string;
+}
+
 // ─── Rewards ──────────────────────────────────────────────────────────────────
 export interface Reward {
     id: string;

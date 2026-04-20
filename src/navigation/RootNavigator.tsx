@@ -33,7 +33,7 @@ import {
 } from '../types/navigation';
 
 // Icons
-import { Layers, Info, MessageCircle, User } from 'lucide-react-native';
+import { Calendar, BookOpen, MessageSquare, UserCircle2 } from 'lucide-react-native';
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const ActivitiesStack = createNativeStackNavigator<ActivitiesStackParamList>();
@@ -113,41 +113,58 @@ function AppTabs() {
         <Tab.Navigator
             screenOptions={{
                 headerShown: false,
-                tabBarActiveTintColor: theme.colors.primary,
-                tabBarInactiveTintColor: theme.colors.textSecondary,
+                tabBarActiveTintColor: theme.colors.primaryDark,
+                tabBarInactiveTintColor: theme.colors.textTertiary,
                 tabBarStyle: {
+                    borderTopWidth: 1,
                     borderTopColor: theme.colors.border,
                     backgroundColor: theme.colors.surface,
                 },
-                tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+                tabBarItemStyle: {
+                    paddingTop: 6,
+                    paddingBottom: 4,
+                },
+                tabBarLabelStyle: {
+                    fontSize: 10.5,
+                    fontWeight: '600',
+                    marginTop: 0,
+                },
             }}
         >
             <Tab.Screen
                 name="Actividades"
                 component={ActivitiesNavigator}
                 options={{
-                    tabBarIcon: ({ color, size }) => <Layers color={color} size={size} />,
+                    tabBarIcon: ({ color, focused }) => (
+                        <Calendar color={color} size={focused ? 22 : 20} strokeWidth={focused ? 2.4 : 2} />
+                    ),
                 }}
             />
             <Tab.Screen
                 name="Información"
                 component={InfoScreen}
                 options={{
-                    tabBarIcon: ({ color, size }) => <Info color={color} size={size} />,
+                    tabBarIcon: ({ color, focused }) => (
+                        <BookOpen color={color} size={focused ? 22 : 20} strokeWidth={focused ? 2.4 : 2} />
+                    ),
                 }}
             />
             <Tab.Screen
                 name="Chats"
                 component={ChatsNavigator}
                 options={{
-                    tabBarIcon: ({ color, size }) => <MessageCircle color={color} size={size} />,
+                    tabBarIcon: ({ color, focused }) => (
+                        <MessageSquare color={color} size={focused ? 22 : 20} strokeWidth={focused ? 2.4 : 2} />
+                    ),
                 }}
             />
             <Tab.Screen
                 name="Perfil"
                 component={ProfileNavigator}
                 options={{
-                    tabBarIcon: ({ color, size }) => <User color={color} size={size} />,
+                    tabBarIcon: ({ color, focused }) => (
+                        <UserCircle2 color={color} size={focused ? 22 : 20} strokeWidth={focused ? 2.4 : 2} />
+                    ),
                 }}
             />
         </Tab.Navigator>

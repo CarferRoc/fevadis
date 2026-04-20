@@ -1,162 +1,324 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import {
     View,
     Text,
     StyleSheet,
-    ScrollView,
+    FlatList,
+    Pressable,
+    Alert,
     Linking,
-    TouchableOpacity,
+    RefreshControl,
+    ScrollView,
 } from 'react-native';
-import { theme } from '../../theme';
+import { useQuery } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Globe, Phone, Mail, Heart } from 'lucide-react-native';
+import { useNavigation } from '@react-navigation/native';
+import { FileText, Download, Plus } from 'lucide-react-native';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { theme } from '../../theme';
+import { documentsService } from '../../services/documentsService';
+import { InfoDocument } from '../../types';
+import { Logo } from '../../components/Logo';
+import { EmptyState } from '../../components/EmptyState';
+import { useAuthStore } from '../../store/useAuthStore';
 
-const INFO_ITEMS = [
-    {
-        icon: '🏢',
-        title: '¿Quiénes somos?',
-        content:
-            'FEVADIS es la Federación Valenciana de Asociaciones en Favor de las Personas con Discapacidad Intelectual o del Desarrollo. Trabajamos para mejorar la calidad de vida de las personas con discapacidad y sus familias.',
-    },
-    {
-        icon: '🎯',
-        title: 'Nuestra misión',
-        content:
-            'Promover la inclusión social y la autonomía de las personas con discapacidad intelectual mediante programas de voluntariado, actividades culturales, formación y apoyo a las familias.',
-    },
-    {
-        icon: '🤝',
-        title: 'El voluntariado',
-        content:
-            'Nuestros voluntarios son el motor de nuestras actividades. Si quieres unirte, contacta con nosotros para recibir tu DNI autorizado y completar el registro en esta app.',
-    },
-];
-
-const CONTACT_ITEMS = [
-    {
-        icon: Globe,
-        label: 'Web',
-        value: 'www.fevadis.es',
-        action: () => Linking.openURL('https://www.fevadis.es'),
-    },
-    {
-        icon: Phone,
-        label: 'Teléfono',
-        value: '963 XXX XXX',
-        action: () => Linking.openURL('tel:963000000'),
-    },
-    {
-        icon: Mail,
-        label: 'Email',
-        value: 'info@fevadis.es',
-        action: () => Linking.openURL('mailto:info@fevadis.es'),
-    },
-];
+function formatBytes(bytes: number | null) {
+    if (!bytes) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 export default function InfoScreen() {
+    const { isAdmin } = useAuthStore();
+    const navigation = useNavigation<any>();
+    const [selectedCat, setSelectedCat] = useState<string>('Todas');
+
+    const { data: docs, isLoading, refetch, isRefetching } = useQuery({
+        queryKey: ['info-docs'],
+        queryFn: documentsService.getDocuments,
+    });
+
+    const categories = useMemo(() => {
+        const set = new Set<string>();
+        (docs ?? []).forEach((d) => set.add(d.category));
+        return ['Todas', ...Array.from(set).sort()];
+    }, [docs]);
+
+    const filteredDocs = useMemo(() => {
+        if (!docs) return [];
+        if (selectedCat === 'Todas') return docs;
+        return docs.filter((d) => d.category === selectedCat);
+    }, [docs, selectedCat]);
+
+    async function handleDownload(doc: InfoDocument) {
+        try {
+            const url = await documentsService.getDownloadUrl(doc.url);
+            await Linking.openURL(url);
+        } catch (e: any) {
+            Alert.alert('Error', e.message);
+        }
+    }
+
+    const renderItem = ({ item }: { item: InfoDocument }) => (
+        <Pressable
+            onPress={() => handleDownload(item)}
+            style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+        >
+            <View style={styles.fileIcon}>
+                <FileText size={18} color={theme.colors.primaryDark} />
+            </View>
+            <View style={{ flex: 1 }}>
+                <Text style={styles.docTitle} numberOfLines={2}>
+                    {item.title}
+                </Text>
+                <View style={styles.metaRow}>
+                    <View style={styles.catPill}>
+                        <Text style={styles.catText}>{item.category}</Text>
+                    </View>
+                    <Text style={styles.metaText}>
+                        {format(new Date(item.created_at), "d MMM yyyy", { locale: es })}
+                    </Text>
+                    {item.file_size ? (
+                        <Text style={styles.metaText}>· {formatBytes(item.file_size)}</Text>
+                    ) : null}
+                </View>
+            </View>
+            <View style={styles.downloadIcon}>
+                <Download size={16} color={theme.colors.primaryDark} />
+            </View>
+        </Pressable>
+    );
+
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
-            <ScrollView contentContainerStyle={styles.scroll}>
-                {/* Header */}
-                <View style={styles.header}>
-                    <View style={styles.logoCircle}>
-                        <Text style={styles.logoText}>F</Text>
-                    </View>
-                    <Text style={styles.orgName}>FEVADIS</Text>
-                    <Text style={styles.orgSub}>Federación Valenciana de Asociaciones</Text>
+            <View style={styles.header}>
+                <View style={styles.brandRow}>
+                    <Logo size={24} />
+                    <Text style={styles.brand}>Información</Text>
                 </View>
+                {isAdmin && (
+                    <Pressable
+                        style={({ pressed }) => [styles.manageBtn, pressed && { opacity: 0.7 }]}
+                        onPress={() =>
+                            (navigation as any).navigate('Perfil', {
+                                screen: 'AdminNavigator',
+                                params: { screen: 'AdminInfo' },
+                            })
+                        }
+                    >
+                        <Plus size={14} color={theme.colors.primaryDark} strokeWidth={2.6} />
+                        <Text style={styles.manageText}>Subir</Text>
+                    </Pressable>
+                )}
+            </View>
 
-                {/* Info sections */}
-                {INFO_ITEMS.map((item) => (
-                    <View key={item.title} style={styles.card}>
-                        <Text style={styles.cardIcon}>{item.icon}</Text>
-                        <Text style={styles.cardTitle}>{item.title}</Text>
-                        <Text style={styles.cardContent}>{item.content}</Text>
-                    </View>
-                ))}
+            <View style={styles.heroBox}>
+                <Text style={styles.heroTitle}>Documentos del voluntariado</Text>
+                <Text style={styles.heroSub}>
+                    Archivos y materiales publicados por el equipo de FEVADIS. Toca cualquier elemento para verlo o descargarlo.
+                </Text>
+            </View>
 
-                {/* Contact section */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Contacto</Text>
-                    {CONTACT_ITEMS.map((item) => (
-                        <TouchableOpacity
-                            key={item.label}
-                            style={styles.contactRow}
-                            onPress={item.action}
-                        >
-                            <item.icon size={20} color={theme.colors.primary} />
-                            <View>
-                                <Text style={styles.contactLabel}>{item.label}</Text>
-                                <Text style={styles.contactValue}>{item.value}</Text>
-                            </View>
-                        </TouchableOpacity>
-                    ))}
-                </View>
+            {(docs?.length ?? 0) > 0 && categories.length > 2 && (
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.chipsRow}
+                    style={styles.chipsScroll}
+                >
+                    {categories.map((cat) => {
+                        const active = selectedCat === cat;
+                        return (
+                            <Pressable
+                                key={cat}
+                                style={[styles.chip, active && styles.chipActive]}
+                                onPress={() => setSelectedCat(cat)}
+                            >
+                                <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                                    {cat}
+                                </Text>
+                            </Pressable>
+                        );
+                    })}
+                </ScrollView>
+            )}
 
-                {/* Footer */}
-                <View style={styles.footer}>
-                    <Heart size={16} color={theme.colors.error} fill={theme.colors.error} />
-                    <Text style={styles.footerText}>Hecho con amor por los voluntarios de FEVADIS</Text>
-                </View>
-            </ScrollView>
+            <FlatList
+                data={filteredDocs}
+                keyExtractor={(item) => item.id}
+                renderItem={renderItem}
+                contentContainerStyle={styles.list}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={isRefetching}
+                        onRefresh={refetch}
+                        tintColor={theme.colors.primary}
+                        colors={[theme.colors.primary]}
+                    />
+                }
+                ListEmptyComponent={
+                    isLoading ? null : (
+                        <EmptyState
+                            icon="📄"
+                            title="Sin documentos"
+                            subtitle={
+                                isAdmin
+                                    ? 'Aún no hay archivos. Usa "Subir" para publicar el primero.'
+                                    : 'Aquí aparecerán los archivos que publiquen los administradores.'
+                            }
+                        />
+                    )
+                }
+            />
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.colors.background },
-    scroll: { padding: theme.spacing.lg, paddingBottom: theme.spacing.xxl },
+
     header: {
-        alignItems: 'center',
-        marginBottom: theme.spacing.xl,
-        paddingTop: theme.spacing.md,
-    },
-    logoCircle: {
-        width: 72,
-        height: 72,
-        borderRadius: 36,
-        backgroundColor: theme.colors.primary,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: theme.spacing.sm,
-        ...theme.shadow.md,
-    },
-    logoText: { fontSize: 36, fontWeight: '800', color: '#fff' },
-    orgName: { fontSize: 26, fontWeight: '800', color: theme.colors.text, letterSpacing: 1.5 },
-    orgSub: { ...theme.typography.bodySmall, color: theme.colors.textSecondary, marginTop: 4, textAlign: 'center' },
-    card: {
-        backgroundColor: theme.colors.surface,
-        borderRadius: theme.borderRadius.lg,
-        padding: theme.spacing.lg,
-        marginBottom: theme.spacing.md,
-        ...theme.shadow.sm,
-    },
-    cardIcon: { fontSize: 28, marginBottom: theme.spacing.sm },
-    cardTitle: { ...theme.typography.h3, color: theme.colors.text, marginBottom: 8 },
-    cardContent: { ...theme.typography.body, color: theme.colors.textSecondary, lineHeight: 24 },
-    section: {
-        backgroundColor: theme.colors.surface,
-        borderRadius: theme.borderRadius.lg,
-        padding: theme.spacing.lg,
-        marginBottom: theme.spacing.md,
-        gap: theme.spacing.md,
-        ...theme.shadow.sm,
-    },
-    sectionTitle: { ...theme.typography.h3, color: theme.colors.text },
-    contactRow: {
         flexDirection: 'row',
+        justifyContent: 'space-between',
         alignItems: 'center',
-        gap: theme.spacing.md,
-        paddingVertical: 4,
+        paddingHorizontal: 18,
+        paddingTop: 8,
+        paddingBottom: 10,
     },
-    contactLabel: { ...theme.typography.caption, color: theme.colors.textSecondary },
-    contactValue: { ...theme.typography.body, color: theme.colors.primary, fontWeight: '600' },
-    footer: {
+    brandRow: {
         flexDirection: 'row',
-        justifyContent: 'center',
         alignItems: 'center',
         gap: 8,
-        marginTop: theme.spacing.md,
     },
-    footerText: { ...theme.typography.caption, color: theme.colors.textSecondary },
+    brand: {
+        fontSize: 17,
+        fontWeight: '800',
+        color: theme.colors.text,
+        letterSpacing: -0.3,
+    },
+    manageBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+        backgroundColor: theme.colors.primaryLight,
+        paddingHorizontal: 11,
+        paddingVertical: 6,
+        borderRadius: theme.radius.pill,
+    },
+    manageText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: theme.colors.primaryDark,
+    },
+
+    heroBox: {
+        paddingHorizontal: 18,
+        paddingBottom: 14,
+    },
+    heroTitle: {
+        ...theme.typography.display,
+        color: theme.colors.text,
+    },
+    heroSub: {
+        ...theme.typography.bodySmall,
+        color: theme.colors.textSecondary,
+        marginTop: 4,
+        maxWidth: 360,
+    },
+
+    chipsScroll: {
+        maxHeight: 44,
+    },
+    chipsRow: {
+        paddingHorizontal: 18,
+        paddingVertical: 6,
+        gap: 6,
+    },
+    chip: {
+        paddingHorizontal: 14,
+        paddingVertical: 7,
+        borderRadius: theme.radius.pill,
+        backgroundColor: theme.colors.surface,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
+    },
+    chipActive: {
+        backgroundColor: theme.colors.text,
+        borderColor: theme.colors.text,
+    },
+    chipText: {
+        fontSize: 12.5,
+        fontWeight: '600',
+        color: theme.colors.textSecondary,
+    },
+    chipTextActive: {
+        color: '#fff',
+    },
+
+    list: {
+        paddingHorizontal: 14,
+        paddingTop: 8,
+        paddingBottom: 40,
+    },
+    card: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        backgroundColor: theme.colors.surface,
+        borderRadius: theme.radius.lg,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
+        padding: 12,
+        marginBottom: 8,
+    },
+    cardPressed: {
+        backgroundColor: theme.colors.primarySoft,
+        borderColor: theme.colors.primaryLight,
+    },
+    fileIcon: {
+        width: 38,
+        height: 38,
+        borderRadius: 12,
+        backgroundColor: theme.colors.primaryLight,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    docTitle: {
+        ...theme.typography.bodyStrong,
+        color: theme.colors.text,
+        marginBottom: 4,
+    },
+    metaRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        flexWrap: 'wrap',
+    },
+    catPill: {
+        backgroundColor: theme.colors.primaryLight,
+        paddingHorizontal: 7,
+        paddingVertical: 2,
+        borderRadius: theme.radius.pill,
+    },
+    catText: {
+        fontSize: 10.5,
+        fontWeight: '700',
+        color: theme.colors.primaryDark,
+        letterSpacing: 0.3,
+    },
+    metaText: {
+        fontSize: 11.5,
+        color: theme.colors.textSecondary,
+        fontWeight: '500',
+    },
+    downloadIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 10,
+        backgroundColor: theme.colors.primarySoft,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
 });

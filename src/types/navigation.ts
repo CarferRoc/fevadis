@@ -36,6 +36,7 @@ export type AdminStackParamList = {
     AdminRewardForm: { rewardId?: string };
     AdminGroupChats: undefined;
     AdminCreateGroupChat: undefined;
+    AdminInfo: undefined;
 };
 
 // ─── Perfil Stack ─────────────────────────────────────────────────────────────

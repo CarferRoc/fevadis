@@ -1,33 +1,111 @@
 import { supabase } from '../utils/supabase';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
+import { InfoDocument } from '../types';
+
+const BUCKET = 'documents';
 
 export const documentsService = {
-    async getDocuments() {
+    async getDocuments(): Promise<InfoDocument[]> {
         const { data, error } = await supabase
             .from('documents')
             .select('*')
             .order('created_at', { ascending: false });
         if (error) throw error;
-        return data;
+        return (data ?? []) as InfoDocument[];
     },
 
-    async deleteDocument(id: string, path: string) {
-        const { error: storageError } = await supabase.storage.from('documents').remove([path]);
-        if (storageError) throw storageError;
+    async getCategories(): Promise<string[]> {
+        const { data, error } = await supabase
+            .from('documents')
+            .select('category');
+        if (error) throw error;
+        const set = new Set<string>();
+        (data ?? []).forEach((row: any) => {
+            if (row.category) set.add(row.category);
+        });
+        return Array.from(set).sort();
+    },
 
-        const { error: dbError } = await supabase.from('documents').delete().eq('id', id);
+    async deleteDocument(doc: InfoDocument) {
+        if (doc.url) {
+            const { error: storageError } = await supabase.storage.from(BUCKET).remove([doc.url]);
+            if (storageError && !storageError.message.toLowerCase().includes('not found')) {
+                throw storageError;
+            }
+        }
+        const { error: dbError } = await supabase.from('documents').delete().eq('id', doc.id);
         if (dbError) throw dbError;
     },
 
-    async uploadDocument(file: any, title: string, category: string) {
-        // TODO: Implement upload
-        throw new Error('Not implemented');
+    /**
+     * Abre el selector de archivos del sistema y sube el resultado
+     * a la tabla `documents` (info global del voluntariado).
+     */
+    async pickAndUploadInfoDocument(
+        title: string,
+        category: string
+    ): Promise<InfoDocument> {
+        const result = await DocumentPicker.getDocumentAsync({
+            type: '*/*',
+            copyToCacheDirectory: true,
+        });
+
+        if (result.canceled || !result.assets?.[0]) {
+            throw new Error('No se seleccionó ningún archivo');
+        }
+
+        const asset = result.assets[0];
+        const { data: userData, error: userErr } = await supabase.auth.getUser();
+        if (userErr || !userData.user) throw userErr ?? new Error('No session');
+
+        const safeName = asset.name.replace(/[^\w.\-]+/g, '_');
+        const path = `${userData.user.id}/${Date.now()}-${safeName}`;
+
+        const base64 = await FileSystem.readAsStringAsync(asset.uri, {
+            encoding: 'base64' as any,
+        });
+
+        const byteCharacters = atob(base64);
+        const byteArray = new Uint8Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+            byteArray[i] = byteCharacters.charCodeAt(i);
+        }
+
+        const { error: upErr } = await supabase.storage
+            .from(BUCKET)
+            .upload(path, byteArray, {
+                contentType: asset.mimeType ?? 'application/octet-stream',
+                upsert: false,
+            });
+        if (upErr) throw upErr;
+
+        const { data, error: dbErr } = await supabase
+            .from('documents')
+            .insert({
+                title: title.trim() || asset.name,
+                category: category.trim() || 'General',
+                url: path,
+                file_type: asset.mimeType ?? null,
+                file_size: asset.size ?? null,
+                uploaded_by: userData.user.id,
+            })
+            .select()
+            .single();
+
+        if (dbErr) {
+            await supabase.storage.from(BUCKET).remove([path]);
+            throw dbErr;
+        }
+
+        return data as InfoDocument;
     },
 
-    getPublicUrl(path: string) {
-        return supabase.storage.from('documents').getPublicUrl(path).data.publicUrl;
+    async getDownloadUrl(path: string): Promise<string> {
+        const { data, error } = await supabase.storage
+            .from(BUCKET)
+            .createSignedUrl(path, 3600);
+        if (error) throw error;
+        return data.signedUrl;
     },
-
-    async createSignedUrl(path: string, expiresIn: number) {
-        return await supabase.storage.from('documents').createSignedUrl(path, expiresIn);
-    }
 };

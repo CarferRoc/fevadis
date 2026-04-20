@@ -3,15 +3,14 @@ import { View, Text, StyleSheet } from 'react-native';
 import { theme } from '../theme';
 import { RegistrationStatus, AttendanceStatus } from '../types';
 
-// ─── Registration Status Badge ────────────────────────────────────────────────
 const REGISTRATION_CONFIG: Record<
     RegistrationStatus,
-    { label: string; bg: string; text: string }
+    { label: string; bg: string; text: string; dot: string }
 > = {
-    pendiente: { label: 'Pendiente', bg: theme.colors.statusPending, text: theme.colors.statusPendingText },
-    aceptado: { label: 'Aceptado', bg: theme.colors.statusAccepted, text: theme.colors.statusAcceptedText },
-    rechazado: { label: 'Rechazado', bg: theme.colors.statusRejected, text: theme.colors.statusRejectedText },
-    lista_espera: { label: 'Lista Espera', bg: theme.colors.statusWaiting, text: theme.colors.statusWaitingText },
+    pendiente: { label: 'Pendiente', bg: theme.colors.statusPending, text: theme.colors.statusPendingText, dot: '#D19B16' },
+    aceptado: { label: 'Aceptado', bg: theme.colors.statusAccepted, text: theme.colors.statusAcceptedText, dot: '#4C9A2A' },
+    rechazado: { label: 'Rechazado', bg: theme.colors.statusRejected, text: theme.colors.statusRejectedText, dot: '#C94646' },
+    lista_espera: { label: 'Lista Espera', bg: theme.colors.statusWaiting, text: theme.colors.statusWaitingText, dot: '#7266C4' },
 };
 
 interface StatusBadgeProps {
@@ -19,22 +18,22 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status }: StatusBadgeProps) {
-    const config = REGISTRATION_CONFIG[status];
+    const c = REGISTRATION_CONFIG[status];
     return (
-        <View style={[styles.badge, { backgroundColor: config.bg }]}>
-            <Text style={[styles.text, { color: config.text }]}>{config.label}</Text>
+        <View style={[styles.badge, { backgroundColor: c.bg }]}>
+            <View style={[styles.dot, { backgroundColor: c.dot }]} />
+            <Text style={[styles.text, { color: c.text }]}>{c.label}</Text>
         </View>
     );
 }
 
-// ─── Attendance Status Badge ──────────────────────────────────────────────────
 const ATTENDANCE_CONFIG: Record<
     AttendanceStatus,
-    { label: string; bg: string; text: string }
+    { label: string; bg: string; text: string; dot: string }
 > = {
-    pendiente: { label: 'Sin marcar', bg: '#F3F4F6', text: '#374151' },
-    asistio: { label: 'Asistió ✓', bg: theme.colors.statusAccepted, text: theme.colors.statusAcceptedText },
-    no_asistio: { label: 'No asistió', bg: theme.colors.statusRejected, text: theme.colors.statusRejectedText },
+    pendiente: { label: 'Sin marcar', bg: theme.colors.surfaceMuted, text: theme.colors.textSecondary, dot: theme.colors.textTertiary },
+    asistio: { label: 'Asistió', bg: theme.colors.successSoft, text: theme.colors.success, dot: theme.colors.success },
+    no_asistio: { label: 'No asistió', bg: theme.colors.errorSoft, text: theme.colors.error, dot: theme.colors.error },
 };
 
 interface AttendanceBadgeProps {
@@ -42,23 +41,32 @@ interface AttendanceBadgeProps {
 }
 
 export function AttendanceBadge({ attendance }: AttendanceBadgeProps) {
-    const config = ATTENDANCE_CONFIG[attendance];
+    const c = ATTENDANCE_CONFIG[attendance];
     return (
-        <View style={[styles.badge, { backgroundColor: config.bg }]}>
-            <Text style={[styles.text, { color: config.text }]}>{config.label}</Text>
+        <View style={[styles.badge, { backgroundColor: c.bg }]}>
+            <View style={[styles.dot, { backgroundColor: c.dot }]} />
+            <Text style={[styles.text, { color: c.text }]}>{c.label}</Text>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
     badge: {
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: theme.borderRadius.full,
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: theme.radius.pill,
         alignSelf: 'flex-start',
+        gap: 5,
+    },
+    dot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
     },
     text: {
-        fontSize: 12,
-        fontWeight: '600',
+        fontSize: 11,
+        fontWeight: '700',
     },
 });

@@ -5,7 +5,7 @@ import {
     StyleSheet,
     ScrollView,
     Alert,
-    TouchableOpacity,
+    Pressable,
 } from 'react-native';
 import { useAuthStore } from '../../store/useAuthStore';
 import { supabase } from '../../utils/supabase';
@@ -16,7 +16,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ProfileStackParamList } from '../../types/navigation';
 import {
     User, ChevronRight, FolderOpen, Activity,
-    LogOut, Shield, FileText, Gift
+    LogOut, Shield, Gift, Settings as SettingsIcon,
 } from 'lucide-react-native';
 import { FormInput } from '../../components/FormInput';
 import { Button } from '../../components/Button';
@@ -64,7 +64,7 @@ export default function ProfileScreen() {
             .eq('user_id', user.id);
         if (error) Alert.alert('Error', error.message);
         else {
-            Alert.alert('✅ Guardado', 'Tu perfil ha sido actualizado.');
+            Alert.alert('Guardado', 'Tu perfil se ha actualizado.');
             setIsEditing(false);
             fetchProfile();
         }
@@ -77,40 +77,51 @@ export default function ProfileScreen() {
     const menuItems = [
         {
             key: 'personal',
-            icon: <User size={18} color={theme.colors.primary} />,
+            icon: User,
+            tint: theme.colors.primaryDark,
+            tintBg: theme.colors.primaryLight,
             label: 'Información Personal',
             onPress: () => setIsEditing(true),
         },
         {
             key: 'docs',
-            icon: <FolderOpen size={18} color={theme.colors.catCampamentos} />,
+            icon: FolderOpen,
+            tint: theme.colors.catCampamentos,
+            tintBg: theme.colors.catCampamentosSoft,
             label: 'Mis Documentos',
             onPress: () => (navigation as any).navigate('UserDocuments'),
         },
         {
             key: 'rewards',
-            icon: <Gift size={18} color={theme.colors.accent} />,
+            icon: Gift,
+            tint: theme.colors.warning,
+            tintBg: theme.colors.warningSoft,
             label: 'Recompensas',
             onPress: () => (navigation as any).navigate('Rewards', { puntos }),
         },
         {
             key: 'activity',
-            icon: <Activity size={18} color={theme.colors.catFormaciones} />,
+            icon: Activity,
+            tint: theme.colors.catFormaciones,
+            tintBg: theme.colors.catFormacionesSoft,
             label: 'Mi Actividad',
             onPress: () => (navigation as any).navigate('MyRegistrations'),
         },
-    ];
+    ] as const;
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
-            <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+            <ScrollView
+                contentContainerStyle={styles.scroll}
+                showsVerticalScrollIndicator={false}
+            >
+                <View style={styles.topBar}>
+                    <Text style={styles.topTitle}>Mi perfil</Text>
+                </View>
 
-                {/* ── Avatar + nombre ── */}
-                <View style={styles.heroSection}>
-                    <View style={styles.avatarWrapper}>
-                        <View style={styles.avatar}>
-                            <Text style={styles.avatarText}>{initials}</Text>
-                        </View>
+                <View style={styles.hero}>
+                    <View style={styles.avatar}>
+                        <Text style={styles.avatarText}>{initials}</Text>
                     </View>
                     <Text style={styles.name}>
                         {profile?.nombre ?? ''} {profile?.apellidos ?? ''}
@@ -119,102 +130,111 @@ export default function ProfileScreen() {
                     <View style={styles.badgeRow}>
                         {profile?.role && <RoleBadge role={profile.role} />}
                         <View style={styles.pointsBadge}>
-                            <Gift size={14} color={theme.colors.accent} />
+                            <Gift size={12} color={theme.colors.warning} />
                             <Text style={styles.pointsBadgeText}>{puntos} pts</Text>
                         </View>
                     </View>
                 </View>
 
-                {/* ── Editar perfil (inline) ── */}
-                {isEditing && (
-                    <View style={styles.editCard}>
-                        <Text style={styles.sectionTitle}>Editar Información</Text>
-                        <FormInput label="Nombre" value={nombre} onChangeText={setNombre} />
-                        <FormInput label="Apellidos" value={apellidos} onChangeText={setApellidos} />
-                        <FormInput
-                            label="Teléfono"
-                            value={telefono}
-                            onChangeText={setTelefono}
-                            keyboardType="phone-pad"
-                        />
-                        <View style={styles.editActions}>
-                            <Button
-                                title="Guardar"
-                                onPress={handleUpdate}
-                                loading={loading}
-                                style={{ flex: 1 }}
+                {isEditing ? (
+                    <View style={styles.card}>
+                        <Text style={styles.sectionTitle}>Editar información</Text>
+                        <View style={{ gap: 10 }}>
+                            <FormInput label="Nombre" value={nombre} onChangeText={setNombre} />
+                            <FormInput label="Apellidos" value={apellidos} onChangeText={setApellidos} />
+                            <FormInput
+                                label="Teléfono"
+                                value={telefono}
+                                onChangeText={setTelefono}
+                                keyboardType="phone-pad"
                             />
+                        </View>
+                        <View style={styles.editActions}>
                             <Button
                                 title="Cancelar"
                                 variant="outline"
                                 onPress={() => setIsEditing(false)}
                                 style={{ flex: 1 }}
                             />
+                            <Button
+                                title="Guardar"
+                                onPress={handleUpdate}
+                                loading={loading}
+                                style={{ flex: 1 }}
+                            />
                         </View>
                     </View>
-                )}
+                ) : (
+                    <>
+                        <Text style={styles.sectionLabel}>AJUSTES</Text>
+                        <View style={styles.card}>
+                            {menuItems.map((item, idx) => (
+                                <React.Fragment key={item.key}>
+                                    <Pressable
+                                        onPress={item.onPress}
+                                        style={({ pressed }) => [
+                                            styles.menuItem,
+                                            pressed && { backgroundColor: theme.colors.primarySoft },
+                                        ]}
+                                    >
+                                        <View style={[styles.menuIcon, { backgroundColor: item.tintBg }]}>
+                                            <item.icon size={16} color={item.tint} strokeWidth={2.2} />
+                                        </View>
+                                        <Text style={styles.menuLabel}>{item.label}</Text>
+                                        <ChevronRight size={16} color={theme.colors.textTertiary} />
+                                    </Pressable>
+                                    {idx < menuItems.length - 1 && <View style={styles.divider} />}
+                                </React.Fragment>
+                            ))}
+                        </View>
 
-                {/* ── Menú ajustes ── */}
-                {!isEditing && (
-                    <View style={styles.menuCard}>
-                        <Text style={styles.sectionTitle}>Ajustes</Text>
-                        {menuItems.map((item, idx) => (
-                            <React.Fragment key={item.key}>
-                                <TouchableOpacity
-                                    style={styles.menuItem}
-                                    onPress={item.onPress}
-                                    activeOpacity={0.7}
-                                >
-                                    <View style={styles.menuIcon}>{item.icon}</View>
-                                    <Text style={styles.menuLabel}>{item.label}</Text>
-                                    <ChevronRight size={16} color={theme.colors.textTertiary} />
-                                </TouchableOpacity>
-                                {idx < menuItems.length - 1 && <View style={styles.divider} />}
-                            </React.Fragment>
-                        ))}
-                    </View>
-                )}
+                        {isAdminOrEditor && (
+                            <>
+                                <Text style={styles.sectionLabel}>ADMINISTRACIÓN</Text>
+                                <View style={styles.card}>
+                                    <Pressable
+                                        style={({ pressed }) => [
+                                            styles.menuItem,
+                                            pressed && { backgroundColor: theme.colors.primarySoft },
+                                        ]}
+                                        onPress={() =>
+                                            navigation.navigate('AdminNavigator', { screen: 'AdminHome' } as any)
+                                        }
+                                    >
+                                        <View style={[styles.menuIcon, { backgroundColor: theme.colors.roleAdminSoft }]}>
+                                            <Shield size={16} color={theme.colors.roleAdmin} strokeWidth={2.2} />
+                                        </View>
+                                        <Text style={[styles.menuLabel, { color: theme.colors.roleAdmin, fontWeight: '700' }]}>
+                                            Panel de administración
+                                        </Text>
+                                        <ChevronRight size={16} color={theme.colors.roleAdmin} />
+                                    </Pressable>
+                                </View>
+                            </>
+                        )}
 
-                {/* ── Admin panel ── */}
-                {isAdminOrEditor && !isEditing && (
-                    <View style={styles.menuCard}>
-                        <Text style={styles.sectionTitle}>Administración</Text>
-                        <TouchableOpacity
-                            style={styles.menuItem}
-                            onPress={() => navigation.navigate('AdminNavigator', { screen: 'AdminHome' } as any)}
-                            activeOpacity={0.7}
-                        >
-                            <View style={[styles.menuIcon, { backgroundColor: theme.colors.primary + '15' }]}>
-                                <Shield size={18} color={theme.colors.primary} />
-                            </View>
-                            <Text style={[styles.menuLabel, { color: theme.colors.primary }]}>
-                                Panel de Administración
-                            </Text>
-                            <ChevronRight size={16} color={theme.colors.primary} />
-                        </TouchableOpacity>
-                    </View>
-                )}
-
-                {/* ── Cerrar sesión ── */}
-                {!isEditing && (
-                    <View style={styles.menuCard}>
-                        <TouchableOpacity
-                            style={styles.menuItem}
-                            onPress={() =>
-                                Alert.alert('Cerrar sesión', '¿Estás seguro?', [
-                                    { text: 'Cancelar', style: 'cancel' },
-                                    { text: 'Salir', style: 'destructive', onPress: signOut },
-                                ])
-                            }
-                            activeOpacity={0.7}
-                        >
-                            <View style={[styles.menuIcon, { backgroundColor: theme.colors.error + '15' }]}>
-                                <LogOut size={18} color={theme.colors.error} />
-                            </View>
-                            <Text style={[styles.menuLabel, { color: theme.colors.error }]}>Cerrar Sesión</Text>
-                            <ChevronRight size={16} color={theme.colors.error} />
-                        </TouchableOpacity>
-                    </View>
+                        <View style={styles.card}>
+                            <Pressable
+                                style={({ pressed }) => [
+                                    styles.menuItem,
+                                    pressed && { backgroundColor: theme.colors.errorSoft },
+                                ]}
+                                onPress={() =>
+                                    Alert.alert('Cerrar sesión', '¿Estás seguro?', [
+                                        { text: 'Cancelar', style: 'cancel' },
+                                        { text: 'Salir', style: 'destructive', onPress: signOut },
+                                    ])
+                                }
+                            >
+                                <View style={[styles.menuIcon, { backgroundColor: theme.colors.errorSoft }]}>
+                                    <LogOut size={16} color={theme.colors.error} strokeWidth={2.2} />
+                                </View>
+                                <Text style={[styles.menuLabel, { color: theme.colors.error, fontWeight: '700' }]}>
+                                    Cerrar sesión
+                                </Text>
+                            </Pressable>
+                        </View>
+                    </>
                 )}
             </ScrollView>
         </SafeAreaView>
@@ -225,90 +245,126 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.colors.background },
     scroll: { paddingBottom: 32 },
 
-    // Hero
-    heroSection: {
-        alignItems: 'center',
-        paddingTop: theme.spacing.lg,
-        paddingBottom: theme.spacing.xl,
-        paddingHorizontal: theme.spacing.lg,
-        backgroundColor: theme.colors.surface,
-        borderBottomWidth: 1,
-        borderBottomColor: theme.colors.border,
-        marginBottom: theme.spacing.md,
+    topBar: {
+        paddingHorizontal: 18,
+        paddingTop: 10,
+        paddingBottom: 4,
     },
-    avatarWrapper: { marginBottom: theme.spacing.md },
+    topTitle: {
+        ...theme.typography.caption,
+        color: theme.colors.textSecondary,
+        fontWeight: '700',
+        letterSpacing: 0.6,
+        textTransform: 'uppercase',
+    },
+
+    hero: {
+        alignItems: 'center',
+        paddingHorizontal: 18,
+        paddingTop: 18,
+        paddingBottom: 24,
+    },
     avatar: {
-        width: 96,
-        height: 96,
-        borderRadius: 48,
+        width: 84,
+        height: 84,
+        borderRadius: 42,
         backgroundColor: theme.colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
-        ...theme.shadow.md,
+        marginBottom: 12,
+        ...theme.shadow.sm,
     },
-    avatarText: { fontSize: 38, fontWeight: '800', color: '#fff' },
-    name: { ...theme.typography.h2, color: theme.colors.text, marginBottom: 4, textAlign: 'center' },
-    email: { ...theme.typography.bodySmall, color: theme.colors.textSecondary, marginBottom: 10 },
-    badgeRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+    avatarText: {
+        fontSize: 30,
+        fontWeight: '800',
+        color: '#fff',
+    },
+    name: {
+        ...theme.typography.h2,
+        color: theme.colors.text,
+        textAlign: 'center',
+    },
+    email: {
+        ...theme.typography.bodySmall,
+        color: theme.colors.textSecondary,
+        marginTop: 2,
+    },
+    badgeRow: {
+        flexDirection: 'row',
+        gap: 6,
+        alignItems: 'center',
+        marginTop: 10,
+    },
     pointsBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: theme.colors.accent + '20',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: theme.borderRadius.full,
+        backgroundColor: theme.colors.warningSoft,
+        paddingHorizontal: 9,
+        paddingVertical: 3,
+        borderRadius: theme.radius.pill,
         gap: 4,
     },
     pointsBadgeText: {
-        ...theme.typography.caption,
-        color: theme.colors.accent,
+        fontSize: 12,
         fontWeight: '700',
+        color: theme.colors.warning,
     },
 
-    // Edit inline
-    editCard: {
-        backgroundColor: theme.colors.surface,
-        marginHorizontal: theme.spacing.md,
-        marginBottom: theme.spacing.md,
-        borderRadius: theme.borderRadius.lg,
-        padding: theme.spacing.lg,
-        gap: theme.spacing.sm,
-        ...theme.shadow.sm,
+    sectionLabel: {
+        ...theme.typography.overline,
+        color: theme.colors.textTertiary,
+        marginHorizontal: 18,
+        marginTop: 10,
+        marginBottom: 6,
     },
-    editActions: { flexDirection: 'row', gap: theme.spacing.sm, marginTop: 4 },
-
-    // Menu card
-    menuCard: {
+    card: {
         backgroundColor: theme.colors.surface,
-        marginHorizontal: theme.spacing.md,
-        marginBottom: theme.spacing.md,
-        borderRadius: theme.borderRadius.lg,
-        padding: theme.spacing.md,
-        ...theme.shadow.sm,
+        marginHorizontal: 14,
+        marginBottom: 8,
+        borderRadius: theme.radius.lg,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
+        paddingVertical: 4,
+        paddingHorizontal: 4,
     },
     sectionTitle: {
-        ...theme.typography.label,
-        color: theme.colors.textSecondary,
-        textTransform: 'uppercase',
-        letterSpacing: 0.8,
-        marginBottom: theme.spacing.sm,
-        paddingHorizontal: 4,
+        ...theme.typography.h4,
+        color: theme.colors.text,
+        marginBottom: 12,
+        paddingHorizontal: 12,
+        paddingTop: 10,
+    },
+    editActions: {
+        flexDirection: 'row',
+        gap: 8,
+        marginTop: 14,
+        paddingHorizontal: 12,
+        paddingBottom: 10,
     },
     menuItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 12,
-        paddingHorizontal: 4,
         gap: 12,
+        paddingVertical: 11,
+        paddingHorizontal: 12,
+        borderRadius: theme.radius.md,
     },
     menuIcon: {
-        width: 34,
-        height: 34,
+        width: 32,
+        height: 32,
         borderRadius: 10,
-        backgroundColor: theme.colors.primaryLight + '20',
         justifyContent: 'center',
         alignItems: 'center',
     },
-    menuLabel: { ...theme.typography.body, color: theme.colors.text, flex: 1, fontWeight: '500' },
-    divider: { height: 1, backgroundColor: theme.colors.border, marginHorizontal: 4 },
+    menuLabel: {
+        ...theme.typography.body,
+        color: theme.colors.text,
+        flex: 1,
+        fontWeight: '600',
+    },
+    divider: {
+        height: 1,
+        backgroundColor: theme.colors.border,
+        marginHorizontal: 12,
+    },
 });

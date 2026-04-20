@@ -1,6 +1,14 @@
 # FEVADIS Volunteer App
 
-App móvil de voluntariado para FEVADIS. Expo + React Native + TypeScript + Supabase.
+Plataforma de voluntariado para FEVADIS. Monorepo con dos clientes que comparten
+el mismo backend Supabase:
+
+```
+.
+├── src/                  App móvil (Expo / React Native)
+├── web/                  App web (Vite + React · PWA instalable)
+└── supabase/migrations/  Esquema y RLS (aplica a ambos clientes)
+```
 
 ---
 
@@ -8,12 +16,12 @@ App móvil de voluntariado para FEVADIS. Expo + React Native + TypeScript + Supa
 
 | Tecnología | Uso |
 |---|---|
-| Expo SDK 54 | Plataforma móvil (iOS + Android) |
-| React Native + TypeScript | UI |
-| Supabase (Auth + Postgres) | Backend, auth, BBDD |
+| Expo SDK 54 + React Native | App móvil (iOS + Android) |
+| Vite + React 19 + vite-plugin-pwa | App web PWA |
+| Supabase (Auth + Postgres + Storage + Realtime) | Backend |
 | Zustand | Estado global |
 | React Query | Caché y fetching de datos |
-| React Navigation | Navegación (tabs + stacks) |
+| React Navigation / React Router | Navegación (móvil / web) |
 
 ---
 
@@ -62,24 +70,51 @@ En el SQL Editor, ejecuta `supabase/seed.sql`.
 
 ## 2. Configurar variables de entorno
 
-Crea/edita el archivo `.env` en la raíz del proyecto:
+Copia los ejemplos y rellena con tu **publishable key** (la que empieza por
+`sb_publishable_`). **Nunca** uses `sb_secret_` / `service_role` en los
+clientes — Supabase bloquea esas claves en navegador y cualquiera podría
+extraerlas del bundle:
 
-```env
-EXPO_PUBLIC_SUPABASE_URL=https://TU-PROYECTO.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=tu_anon_key_aqui
+```bash
+cp .env.example .env           # para la app móvil (Expo)
+cp web/.env.example web/.env   # para la app web (Vite)
 ```
 
 ---
 
-## 3. Instalar dependencias y ejecutar
+## 3. Ejecutar la app móvil
 
 ```bash
-cd c:\Users\carlo\Desktop\fevadis
 npm install
 npx expo start
 ```
 
-Escanea el QR con la app **Expo Go** en tu móvil, o pulsa `a` para Android / `i` para iOS en el emulador.
+Escanea el QR con **Expo Go** o pulsa `a` para Android / `i` para iOS en el emulador.
+
+## 4. Ejecutar la app web (PWA)
+
+```bash
+cd web
+npm install
+npm run dev       # http://localhost:5173
+npm run build     # build de producción con SW
+npm run preview   # sirve el build para probar instalación PWA
+```
+
+## 5. Deploy
+
+### Web → Vercel
+
+1. Importa el repo en Vercel.
+2. **Root Directory = `web/`** (Settings → General).
+3. Framework preset: Vite.
+4. Añade `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` (publishable) en
+   Environment Variables.
+
+### Móvil → EAS Build
+
+Configura `EXPO_PUBLIC_SUPABASE_URL` y `EXPO_PUBLIC_SUPABASE_ANON_KEY` en el
+perfil de EAS.
 
 ---
 

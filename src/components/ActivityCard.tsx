@@ -1,157 +1,178 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Activity } from '../types';
 import { theme } from '../theme';
-import { Calendar, MapPin, Users } from 'lucide-react-native';
+import { Calendar, MapPin, Users, ChevronRight } from 'lucide-react-native';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 interface ActivityCardProps {
     activity: Activity;
     onPress?: () => void;
-    /** Oculta el botón Inscribirse (para vistas de admin) */
     hideEnrollButton?: boolean;
 }
 
-const CATEGORY_COLORS: Record<string, string> = {
-    Ocio: theme.colors.catOcio,
-    Campamentos: theme.colors.catCampamentos,
-    Formaciones: theme.colors.catFormaciones,
-    Talleres: theme.colors.catTalleres,
+const CAT_COLORS: Record<string, { bg: string; fg: string }> = {
+    Ocio: { bg: theme.colors.catOcioSoft, fg: theme.colors.catOcio },
+    Campamentos: { bg: theme.colors.catCampamentosSoft, fg: theme.colors.catCampamentos },
+    Formaciones: { bg: theme.colors.catFormacionesSoft, fg: theme.colors.catFormaciones },
+    Talleres: { bg: theme.colors.catTalleresSoft, fg: theme.colors.catTalleres },
 };
 
 export function ActivityCard({ activity, onPress, hideEnrollButton }: ActivityCardProps) {
     const startDate = new Date(activity.fecha_inicio);
-    const catColor = CATEGORY_COLORS[activity.categoria] ?? theme.colors.primary;
+    const cat = CAT_COLORS[activity.categoria] ?? { bg: theme.colors.primaryLight, fg: theme.colors.primaryDark };
 
     return (
-        <View style={styles.card}>
-            {/* Top row: título + badge */}
-            <View style={styles.cardTop}>
-                <Text style={styles.cardTitle} numberOfLines={2}>
-                    {activity.titulo}
-                </Text>
-                <View style={[styles.categoryBadge, { backgroundColor: catColor }]}>
-                    <Text style={styles.categoryText}>{activity.categoria}</Text>
+        <Pressable
+            onPress={onPress}
+            style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+        >
+            <View style={styles.topRow}>
+                <View style={[styles.catBadge, { backgroundColor: cat.bg }]}>
+                    <Text style={[styles.catText, { color: cat.fg }]}>{activity.categoria}</Text>
+                </View>
+                <View style={styles.dateTag}>
+                    <Text style={styles.dateDay}>{format(startDate, 'd', { locale: es })}</Text>
+                    <Text style={styles.dateMonth}>{format(startDate, 'MMM', { locale: es }).toUpperCase()}</Text>
                 </View>
             </View>
 
-            {/* Descripción */}
+            <Text style={styles.title} numberOfLines={2}>
+                {activity.titulo}
+            </Text>
+
             {activity.descripcion ? (
-                <Text style={styles.cardDesc} numberOfLines={2}>
+                <Text style={styles.desc} numberOfLines={2}>
                     {activity.descripcion}
                 </Text>
             ) : null}
 
-            <View style={styles.divider} />
-
-            {/* Meta */}
-            <View style={styles.cardMeta}>
-                <View style={styles.metaRow}>
-                    <Calendar size={13} color={theme.colors.textTertiary} />
+            <View style={styles.meta}>
+                <View style={styles.metaItem}>
+                    <Calendar size={12} color={theme.colors.textTertiary} />
                     <Text style={styles.metaText}>
-                        {format(startDate, "d 'de' MMMM yyyy", { locale: es })}
+                        {format(startDate, "d MMM", { locale: es })}
                     </Text>
                 </View>
-                <View style={styles.metaRow}>
-                    <Users size={13} color={theme.colors.textTertiary} />
-                    <Text style={styles.metaText}>
-                        {activity.plazas} plazas disponibles
-                    </Text>
+                <View style={styles.metaDot} />
+                <View style={styles.metaItem}>
+                    <Users size={12} color={theme.colors.textTertiary} />
+                    <Text style={styles.metaText}>{activity.plazas} plazas</Text>
                 </View>
                 {activity.ubicacion ? (
-                    <View style={styles.metaRow}>
-                        <MapPin size={13} color={theme.colors.textTertiary} />
-                        <Text style={styles.metaText} numberOfLines={1}>
-                            {activity.ubicacion}
-                        </Text>
-                    </View>
+                    <>
+                        <View style={styles.metaDot} />
+                        <View style={[styles.metaItem, { flexShrink: 1 }]}>
+                            <MapPin size={12} color={theme.colors.textTertiary} />
+                            <Text style={styles.metaText} numberOfLines={1}>
+                                {activity.ubicacion}
+                            </Text>
+                        </View>
+                    </>
                 ) : null}
             </View>
 
-            {/* Botón Inscribirse */}
             {!hideEnrollButton && (
-                <View style={styles.cardFooter}>
-                    <TouchableOpacity
-                        style={styles.enrollBtn}
-                        onPress={onPress}
-                        activeOpacity={0.8}
-                    >
-                        <Text style={styles.enrollBtnText}>Inscribirse</Text>
-                    </TouchableOpacity>
+                <View style={styles.footer}>
+                    <Text style={styles.footerText}>Ver detalles</Text>
+                    <ChevronRight size={14} color={theme.colors.primaryDark} />
                 </View>
             )}
-        </View>
+        </Pressable>
     );
 }
 
 const styles = StyleSheet.create({
     card: {
         backgroundColor: theme.colors.surface,
-        borderRadius: theme.borderRadius.lg,
-        padding: theme.spacing.md,
-        marginBottom: theme.spacing.sm + 4,
-        ...theme.shadow.sm,
+        borderRadius: theme.radius.lg,
+        padding: 14,
+        marginBottom: 10,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
     },
-    cardTop: {
+    pressed: {
+        backgroundColor: theme.colors.primarySoft,
+        borderColor: theme.colors.primaryLight,
+    },
+    topRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
-        gap: 10,
-        marginBottom: 8,
-    },
-    cardTitle: {
-        ...theme.typography.h4,
-        color: theme.colors.text,
-        flex: 1,
-        lineHeight: 22,
-    },
-    categoryBadge: {
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: theme.borderRadius.full,
-        flexShrink: 0,
-    },
-    categoryText: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: '#fff',
-    },
-    cardDesc: {
-        ...theme.typography.bodySmall,
-        color: theme.colors.textSecondary,
-        lineHeight: 18,
         marginBottom: 10,
     },
-    divider: {
-        height: 1,
-        backgroundColor: theme.colors.border,
-        marginVertical: 8,
+    catBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: theme.radius.pill,
     },
-    cardMeta: { gap: 6 },
-    metaRow: {
-        flexDirection: 'row',
+    catText: {
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 0.2,
+    },
+    dateTag: {
         alignItems: 'center',
-        gap: 7,
+        minWidth: 44,
     },
-    metaText: {
+    dateDay: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: theme.colors.text,
+        lineHeight: 22,
+    },
+    dateMonth: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: theme.colors.textTertiary,
+        letterSpacing: 0.8,
+    },
+    title: {
+        ...theme.typography.h4,
+        color: theme.colors.text,
+        marginBottom: 4,
+    },
+    desc: {
         ...theme.typography.bodySmall,
         color: theme.colors.textSecondary,
-        flex: 1,
+        marginBottom: 10,
     },
-    cardFooter: {
-        alignItems: 'flex-end',
+    meta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: 6,
+    },
+    metaItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    metaText: {
+        fontSize: 12,
+        color: theme.colors.textSecondary,
+        fontWeight: '500',
+    },
+    metaDot: {
+        width: 3,
+        height: 3,
+        borderRadius: 1.5,
+        backgroundColor: theme.colors.borderStrong,
+    },
+    footer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
         marginTop: 12,
+        paddingTop: 10,
+        borderTopWidth: 1,
+        borderTopColor: theme.colors.border,
+        gap: 2,
     },
-    enrollBtn: {
-        backgroundColor: theme.colors.primary,
-        paddingHorizontal: 22,
-        paddingVertical: 9,
-        borderRadius: theme.borderRadius.full,
-    },
-    enrollBtnText: {
-        color: '#fff',
-        fontSize: 13,
+    footerText: {
+        fontSize: 12,
         fontWeight: '700',
+        color: theme.colors.primaryDark,
     },
 });

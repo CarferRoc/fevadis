@@ -105,6 +105,27 @@ export const chatService = {
         return data as Message[];
     },
 
+    async getParticipantProfiles(userIds: string[]) {
+        if (!userIds.length) return [];
+        // Lee la vista pública (solo nombre/apellidos/rol — sin dni/email/teléfono).
+        const { data, error } = await supabase
+            .from('public_profiles')
+            .select('user_id, nombre, apellidos, role')
+            .in('user_id', userIds);
+
+        if (error) throw error;
+        return data as Array<{ user_id: string; nombre: string; apellidos: string; role: string }>;
+    },
+
+    async getChatParticipants(chatId: string) {
+        // Alternativa más restrictiva: valida que el caller está en el chat.
+        const { data, error } = await supabase.rpc('get_chat_participants', {
+            p_chat_id: chatId,
+        });
+        if (error) throw error;
+        return (data ?? []) as Array<{ user_id: string; nombre: string; apellidos: string; role: string }>;
+    },
+
     async sendMessage(chatId: string, senderId: string, text: string) {
         const trimmed = text.trim();
         if (!trimmed) throw new Error('El mensaje no puede estar vacío');

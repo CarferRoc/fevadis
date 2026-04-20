@@ -5,6 +5,8 @@ import {
     StyleSheet,
     ScrollView,
     Alert,
+    KeyboardAvoidingView,
+    Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -13,7 +15,9 @@ import { signInWithDni } from '../../services/authService';
 import { getDniError, formatDni } from '../../utils/dniValidator';
 import { FormInput } from '../../components/FormInput';
 import { Button } from '../../components/Button';
+import { Logo } from '../../components/Logo';
 import { theme } from '../../theme';
+import { IdCard, Lock, ArrowRight } from 'lucide-react-native';
 
 type LoginNav = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 
@@ -24,159 +28,166 @@ export default function LoginScreen() {
     const [loading, setLoading] = useState(false);
     const [dniError, setDniError] = useState('');
 
-    function validateForm(): boolean {
+    function validate(): boolean {
         const err = getDniError(dni);
         setDniError(err ?? '');
         if (err) return false;
         if (!password) {
-            Alert.alert('Error', 'Introduce tu contraseña');
+            Alert.alert('Falta la contraseña', 'Introduce tu contraseña para continuar.');
             return false;
         }
         return true;
     }
 
     async function handleLogin() {
-        if (!validateForm()) return;
+        if (!validate()) return;
         setLoading(true);
         try {
             await signInWithDni(formatDni(dni), password);
         } catch (e: any) {
-            Alert.alert('Error al iniciar sesión', e.message);
+            Alert.alert('No se pudo entrar', e.message);
         } finally {
             setLoading(false);
         }
     }
 
     return (
-        <ScrollView
-            contentContainerStyle={styles.container}
-            keyboardShouldPersistTaps="handled"
+        <KeyboardAvoidingView
+            style={styles.safe}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-            {/* Logo + título */}
-            <View style={styles.logoArea}>
-                <View style={styles.logoCircle}>
-                    <Text style={styles.logoEmoji}>🦅</Text>
+            <ScrollView
+                contentContainerStyle={styles.container}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+            >
+                <View style={styles.hero}>
+                    <Logo size={72} />
+                    <Text style={styles.brand}>fevadis</Text>
+                    <Text style={styles.tagline}>Plataforma de voluntariado</Text>
                 </View>
-                <Text style={styles.appName}>FEVADIS</Text>
-                <Text style={styles.appSub}>Plataforma de Voluntariado</Text>
-            </View>
 
-            {/* Formulario */}
-            <View style={styles.card}>
-                <Text style={styles.cardTitle}>Iniciar sesión</Text>
-                <Text style={styles.cardSub}>
-                    Accede con tu DNI y contraseña
+                <View style={styles.card}>
+                    <Text style={styles.title}>Bienvenid@</Text>
+                    <Text style={styles.subtitle}>Inicia sesión con tu DNI</Text>
+
+                    <View style={styles.fields}>
+                        <FormInput
+                            label="DNI"
+                            placeholder="00000000A"
+                            value={dni}
+                            onChangeText={(v) => {
+                                setDni(v);
+                                if (dniError) setDniError('');
+                            }}
+                            autoCapitalize="characters"
+                            autoCorrect={false}
+                            maxLength={9}
+                            error={dniError}
+                            leftIcon={<IdCard size={16} color={theme.colors.textTertiary} />}
+                        />
+                        <FormInput
+                            label="Contraseña"
+                            placeholder="••••••••"
+                            value={password}
+                            onChangeText={setPassword}
+                            secureTextEntry
+                            textContentType="password"
+                            leftIcon={<Lock size={16} color={theme.colors.textTertiary} />}
+                        />
+                    </View>
+
+                    <Button
+                        title="Entrar"
+                        onPress={handleLogin}
+                        loading={loading}
+                        rightIcon={<ArrowRight size={16} color="#fff" />}
+                        fullWidth
+                    />
+                </View>
+
+                <View style={styles.bottom}>
+                    <Text style={styles.bottomText}>¿No tienes cuenta todavía?</Text>
+                    <Button
+                        title="Crear cuenta"
+                        variant="outline"
+                        size="sm"
+                        onPress={() => navigation.navigate('Register')}
+                    />
+                </View>
+
+                <Text style={styles.legal}>
+                    Solo DNIs previamente autorizados
                 </Text>
-
-                <View style={styles.formFields}>
-                    <FormInput
-                        label="DNI"
-                        placeholder="00000000A"
-                        value={dni}
-                        onChangeText={(v) => {
-                            setDni(v);
-                            if (dniError) setDniError('');
-                        }}
-                        autoCapitalize="characters"
-                        autoCorrect={false}
-                        maxLength={9}
-                        error={dniError}
-                    />
-                    <FormInput
-                        label="Contraseña"
-                        placeholder="••••••••"
-                        value={password}
-                        onChangeText={setPassword}
-                        secureTextEntry
-                        textContentType="password"
-                    />
-                </View>
-
-                <Button
-                    title="Entrar"
-                    onPress={handleLogin}
-                    loading={loading}
-                    size="lg"
-                />
-
-                <Button
-                    title="¿No tienes cuenta? Registrarse"
-                    variant="ghost"
-                    onPress={() => navigation.navigate('Register')}
-                />
-            </View>
-
-            <Text style={styles.footer}>
-                Solo usuarios con DNI autorizado pueden acceder
-            </Text>
-        </ScrollView>
+            </ScrollView>
+        </KeyboardAvoidingView>
     );
 }
 
 const styles = StyleSheet.create({
+    safe: {
+        flex: 1,
+        backgroundColor: theme.colors.background,
+    },
     container: {
         flexGrow: 1,
-        backgroundColor: theme.colors.background,
-        padding: theme.spacing.lg,
+        paddingHorizontal: 22,
+        paddingTop: 60,
+        paddingBottom: 40,
         justifyContent: 'center',
-        paddingBottom: theme.spacing.xxl,
     },
-
-    // Logo
-    logoArea: {
+    hero: {
         alignItems: 'center',
-        marginBottom: theme.spacing.xl,
+        marginBottom: 28,
     },
-    logoCircle: {
-        width: 88,
-        height: 88,
-        borderRadius: 44,
-        backgroundColor: theme.colors.primary,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: theme.spacing.md,
-        ...theme.shadow.md,
-    },
-    logoEmoji: {
-        fontSize: 42,
-    },
-    appName: {
-        fontSize: 28,
+    brand: {
+        fontSize: 26,
         fontWeight: '800',
         color: theme.colors.text,
-        letterSpacing: 3,
+        letterSpacing: -0.5,
+        marginTop: 10,
     },
-    appSub: {
+    tagline: {
         ...theme.typography.bodySmall,
         color: theme.colors.textSecondary,
-        marginTop: 4,
+        marginTop: 2,
     },
-
-    // Card
     card: {
         backgroundColor: theme.colors.surface,
-        borderRadius: theme.borderRadius.xl,
-        padding: theme.spacing.lg,
-        gap: theme.spacing.md,
-        ...theme.shadow.md,
+        borderRadius: theme.radius.xl,
+        padding: 22,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
+        gap: 16,
+        ...theme.shadow.sm,
     },
-    cardTitle: {
-        ...theme.typography.h3,
+    title: {
+        ...theme.typography.h1,
         color: theme.colors.text,
     },
-    cardSub: {
+    subtitle: {
+        ...theme.typography.body,
+        color: theme.colors.textSecondary,
+        marginTop: -10,
+    },
+    fields: {
+        gap: 12,
+    },
+    bottom: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 10,
+        marginTop: 20,
+    },
+    bottomText: {
         ...theme.typography.bodySmall,
         color: theme.colors.textSecondary,
-        marginTop: -6,
     },
-    formFields: {
-        gap: theme.spacing.sm,
-    },
-
-    footer: {
+    legal: {
         ...theme.typography.caption,
         color: theme.colors.textTertiary,
         textAlign: 'center',
-        marginTop: theme.spacing.lg,
+        marginTop: 24,
     },
 });

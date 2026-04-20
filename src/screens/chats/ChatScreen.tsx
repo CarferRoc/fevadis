@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
     View,
     Text,
@@ -21,10 +21,27 @@ import { ChatsStackParamList } from '../../types/navigation';
 
 type Route = RouteProp<ChatsStackParamList, 'Chat'>;
 
+// Tonos para los nombres (para distinguir remitentes sin ser ruidoso)
+const NAME_COLORS = [
+    '#3E7CB1', '#D48712', '#7A52B4', '#D64C8A',
+    '#558A2D', '#3E7A1A', '#A62F2F', '#4E4696',
+];
+
+function colorForId(id: string) {
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) hash = (hash << 5) - hash + id.charCodeAt(i);
+    return NAME_COLORS[Math.abs(hash) % NAME_COLORS.length];
+}
+
 export default function ChatScreen() {
     const route = useRoute<Route>();
     const navigation = useNavigation<any>();
-    const { chatId, isGroup: paramsIsGroup, isAdmin: paramsIsAdmin, onlyAdminsCanSpeak: paramsOnlyAdmins } = route.params;
+    const {
+        chatId,
+        isGroup: paramsIsGroup,
+        isAdmin: paramsIsAdmin,
+        onlyAdminsCanSpeak: paramsOnlyAdmins,
+    } = route.params;
     const { user } = useAuthStore();
     const [text, setText] = useState('');
     const [sending, setSending] = useState(false);
@@ -41,21 +58,33 @@ export default function ChatScreen() {
         queryFn: async () => {
             const data = await chatService.getChats(user?.id || '');
             return data.find((c: Chat) => c.id === chatId);
-        }
+        },
     });
 
     const isGroup = chatDetails ? chatDetails.is_group : paramsIsGroup;
     const groupOnlyAdmins = chatDetails ? chatDetails.only_admins_can_speak : paramsOnlyAdmins;
     const isAdmin = paramsIsAdmin ?? (user?.role === 'admin' || user?.role === 'editor');
 
-    const allMessages = [
-        ...(initialMessages ?? []),
-        ...liveMessages.filter(
-            (m) => !initialMessages?.find((im) => im.id === m.id)
-        ),
-    ];
+    const { data: profiles } = useQuery({
+        queryKey: ['chat-participants', chatId],
+        queryFn: () => chatService.getChatParticipants(chatId),
+        enabled: !!chatId,
+    });
 
-    // Realtime subscription
+    const profileMap = useMemo(() => {
+        const map = new Map<string, { nombre: string; apellidos: string; role: string }>();
+        profiles?.forEach((p) => map.set(p.user_id, p));
+        return map;
+    }, [profiles]);
+
+    const allMessages = useMemo(
+        () => [
+            ...(initialMessages ?? []),
+            ...liveMessages.filter((m) => !initialMessages?.find((im) => im.id === m.id)),
+        ],
+        [initialMessages, liveMessages]
+    );
+
     useEffect(() => {
         const channel = chatService.subscribeToMessages(chatId, (msg) => {
             setLiveMessages((prev) => [...prev, msg]);
@@ -65,7 +94,6 @@ export default function ChatScreen() {
         };
     }, [chatId]);
 
-    // Setup Header Settings Button
     React.useLayoutEffect(() => {
         if (isGroup && isAdmin) {
             navigation.setOptions({
@@ -75,14 +103,13 @@ export default function ChatScreen() {
                         style={{ marginRight: 10, padding: 5 }}
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
-                        <Settings size={28} color={theme.colors.primary} />
+                        <Settings size={22} color="#fff" />
                     </TouchableOpacity>
                 ),
             });
         }
     }, [navigation, isGroup, isAdmin, chatId, groupOnlyAdmins]);
 
-    // Scroll to bottom when new messages arrive
     useEffect(() => {
         if (allMessages.length > 0) {
             setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
@@ -102,13 +129,45 @@ export default function ChatScreen() {
         }
     }
 
-    const renderMessage = ({ item }: { item: Message }) => {
+    const renderMessage = ({ item, index }: { item: Message; index: number }) => {
         const isMe = item.sender_id === user?.id;
+        const prev = allMessages[index - 1];
+        const sameAuthor = prev && prev.sender_id === item.sender_id;
+        const profile = profileMap.get(item.sender_id);
+        const senderName = profile
+            ? `${profile.nombre} ${profile.apellidos}`.trim() || 'Usuario'
+            : 'Usuario';
+        const showSender = !isMe && !sameAuthor;
+        const showMe = isMe && !sameAuthor;
+
         return (
-            <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
-                <Text style={[styles.bubbleText, isMe ? styles.bubbleTextMe : styles.bubbleTextThem]}>
-                    {item.text}
-                </Text>
+            <View
+                style={[
+                    styles.msgWrap,
+                    isMe ? styles.msgWrapMe : styles.msgWrapThem,
+                    sameAuthor && styles.msgWrapGrouped,
+                ]}
+            >
+                {showSender && (
+                    <Text style={[styles.senderName, { color: colorForId(item.sender_id) }]}>
+                        {senderName}
+                        {profile?.role && profile.role !== 'voluntario' ? (
+                            <Text style={styles.senderRole}> · {profile.role}</Text>
+                        ) : null}
+                    </Text>
+                )}
+                {showMe && <Text style={styles.senderMe}>Tú</Text>}
+                <View
+                    style={[
+                        styles.bubble,
+                        isMe ? styles.bubbleMe : styles.bubbleThem,
+                        sameAuthor && (isMe ? styles.bubbleMeCont : styles.bubbleThemCont),
+                    ]}
+                >
+                    <Text style={[styles.bubbleText, isMe ? styles.bubbleTextMe : styles.bubbleTextThem]}>
+                        {item.text}
+                    </Text>
+                </View>
             </View>
         );
     };
@@ -128,7 +187,6 @@ export default function ChatScreen() {
                     contentContainerStyle={styles.list}
                 />
 
-                {/* Input Area or Disabled Notice */}
                 {isGroup && groupOnlyAdmins && !isAdmin ? (
                     <View style={styles.disabledInputRow}>
                         <Text style={styles.disabledText}>
@@ -142,7 +200,7 @@ export default function ChatScreen() {
                             value={text}
                             onChangeText={setText}
                             placeholder="Escribe un mensaje..."
-                            placeholderTextColor={theme.colors.textSecondary}
+                            placeholderTextColor={theme.colors.textTertiary}
                             multiline
                             returnKeyType="default"
                         />
@@ -151,7 +209,7 @@ export default function ChatScreen() {
                             onPress={handleSend}
                             disabled={!text.trim() || sending}
                         >
-                            <Send size={20} color="#fff" />
+                            <Send size={18} color="#fff" />
                         </TouchableOpacity>
                     </View>
                 )}
@@ -162,62 +220,103 @@ export default function ChatScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.colors.background },
-    list: { padding: theme.spacing.md, gap: 8 },
+    list: { padding: 14, paddingBottom: 10 },
+
+    msgWrap: {
+        marginTop: 10,
+        maxWidth: '82%',
+    },
+    msgWrapGrouped: {
+        marginTop: 2,
+    },
+    msgWrapMe: {
+        alignSelf: 'flex-end',
+        alignItems: 'flex-end',
+    },
+    msgWrapThem: {
+        alignSelf: 'flex-start',
+        alignItems: 'flex-start',
+    },
+    senderName: {
+        fontSize: 12,
+        fontWeight: '700',
+        marginLeft: 10,
+        marginBottom: 3,
+    },
+    senderRole: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: theme.colors.textTertiary,
+        textTransform: 'uppercase',
+        letterSpacing: 0.3,
+    },
+    senderMe: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: theme.colors.textTertiary,
+        marginRight: 10,
+        marginBottom: 3,
+    },
+
     bubble: {
-        maxWidth: '80%',
         borderRadius: 16,
-        paddingVertical: 10,
-        paddingHorizontal: 14,
-        marginVertical: 2,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
     },
     bubbleMe: {
-        alignSelf: 'flex-end',
         backgroundColor: theme.colors.primary,
-        borderBottomRightRadius: 4,
+        borderBottomRightRadius: 6,
+    },
+    bubbleMeCont: {
+        borderTopRightRadius: 6,
     },
     bubbleThem: {
-        alignSelf: 'flex-start',
         backgroundColor: theme.colors.surface,
-        borderBottomLeftRadius: 4,
+        borderBottomLeftRadius: 6,
         borderWidth: 1,
         borderColor: theme.colors.border,
     },
-    bubbleText: { fontSize: 15, lineHeight: 22 },
-    bubbleTextMe: { color: '#fff' },
+    bubbleThemCont: {
+        borderTopLeftRadius: 6,
+    },
+    bubbleText: { fontSize: 14, lineHeight: 20 },
+    bubbleTextMe: { color: '#fff', fontWeight: '500' },
     bubbleTextThem: { color: theme.colors.text },
+
     inputRow: {
         flexDirection: 'row',
         alignItems: 'flex-end',
-        gap: theme.spacing.sm,
-        padding: theme.spacing.md,
+        gap: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
         backgroundColor: theme.colors.surface,
         borderTopWidth: 1,
         borderTopColor: theme.colors.border,
     },
     textInput: {
         flex: 1,
-        backgroundColor: theme.colors.background,
-        borderRadius: 20,
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        fontSize: 15,
+        backgroundColor: theme.colors.surfaceAlt,
+        borderRadius: theme.radius.lg,
+        paddingHorizontal: 14,
+        paddingVertical: 9,
+        fontSize: 14,
         maxHeight: 100,
         color: theme.colors.text,
         borderWidth: 1,
         borderColor: theme.colors.border,
     },
     sendBtn: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
+        width: 38,
+        height: 38,
+        borderRadius: theme.radius.md,
         backgroundColor: theme.colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
     },
-    sendBtnDisabled: { opacity: 0.5 },
+    sendBtnDisabled: { opacity: 0.4 },
     disabledInputRow: {
-        padding: theme.spacing.lg,
-        backgroundColor: theme.colors.surface,
+        padding: 14,
+        backgroundColor: theme.colors.surfaceMuted,
         borderTopWidth: 1,
         borderTopColor: theme.colors.border,
         alignItems: 'center',

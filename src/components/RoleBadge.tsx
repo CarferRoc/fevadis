@@ -9,31 +9,31 @@ interface RoleBadgeProps {
 }
 
 const ROLE_LABELS: Record<UserRole, string> = {
-    admin: 'Admin',
+    admin: 'Administrador',
     editor: 'Editor',
     voluntario: 'Voluntario',
 };
 
 const ROLE_COLORS: Record<UserRole, { bg: string; text: string }> = {
-    admin: { bg: '#EEF2FF', text: theme.colors.primary },
-    editor: { bg: '#FFFBEB', text: '#B45309' },
-    voluntario: { bg: '#ECFDF5', text: '#065F46' },
+    admin: { bg: theme.colors.roleAdminSoft, text: theme.colors.roleAdmin },
+    editor: { bg: theme.colors.roleEditorSoft, text: theme.colors.roleEditor },
+    voluntario: { bg: theme.colors.roleVoluntarioSoft, text: theme.colors.roleVoluntario },
 };
 
 export function RoleBadge({ role, size = 'md' }: RoleBadgeProps) {
-    const colors = ROLE_COLORS[role];
+    const c = ROLE_COLORS[role];
     return (
         <View
             style={[
                 styles.badge,
-                { backgroundColor: colors.bg },
+                { backgroundColor: c.bg },
                 size === 'sm' && styles.badgeSm,
             ]}
         >
             <Text
                 style={[
                     styles.text,
-                    { color: colors.text },
+                    { color: c.text },
                     size === 'sm' && styles.textSm,
                 ]}
             >
@@ -45,9 +45,9 @@ export function RoleBadge({ role, size = 'md' }: RoleBadgeProps) {
 
 const styles = StyleSheet.create({
     badge: {
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: theme.borderRadius.full,
+        paddingHorizontal: 9,
+        paddingVertical: 3,
+        borderRadius: theme.radius.pill,
         alignSelf: 'flex-start',
     },
     badgeSm: {
@@ -55,10 +55,11 @@ const styles = StyleSheet.create({
         paddingVertical: 2,
     },
     text: {
-        fontSize: 13,
-        fontWeight: '600',
+        fontSize: 12,
+        fontWeight: '700',
+        letterSpacing: 0.1,
     },
     textSm: {
-        fontSize: 11,
+        fontSize: 10.5,
     },
 });

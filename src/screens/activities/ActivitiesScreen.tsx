@@ -7,6 +7,7 @@ import {
     RefreshControl,
     TouchableOpacity,
     ScrollView,
+    Pressable,
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
@@ -15,11 +16,11 @@ import { activitiesService } from '../../services/activitiesService';
 import { theme } from '../../theme';
 import { useAuthStore } from '../../store/useAuthStore';
 import { ActivitiesStackParamList } from '../../types/navigation';
-import { Activity, ActivityCategory } from '../../types';
+import { ActivityCategory } from '../../types';
 import { EmptyState } from '../../components/EmptyState';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { Calendar, MapPin, Users, Plus, ClipboardList } from 'lucide-react-native';
+import { ActivityCard } from '../../components/ActivityCard';
+import { Logo } from '../../components/Logo';
+import { ClipboardList, Plus } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 type Nav = NativeStackNavigationProp<ActivitiesStackParamList, 'ActivitiesList'>;
@@ -28,86 +29,9 @@ const CATEGORIES: (ActivityCategory | 'Todas')[] = [
     'Todas', 'Ocio', 'Campamentos', 'Formaciones', 'Talleres',
 ];
 
-const CATEGORY_COLORS: Record<string, string> = {
-    Ocio: theme.colors.catOcio,
-    Campamentos: theme.colors.catCampamentos,
-    Formaciones: theme.colors.catFormaciones,
-    Talleres: theme.colors.catTalleres,
-};
-
-function ActivityCard({
-    activity,
-    onPress,
-}: {
-    activity: Activity;
-    onPress: () => void;
-}) {
-    const startDate = new Date(activity.fecha_inicio);
-    const catColor = CATEGORY_COLORS[activity.categoria] ?? theme.colors.primary;
-
-    return (
-        <View style={styles.card}>
-            {/* Top row: título + badge */}
-            <View style={styles.cardTop}>
-                <Text style={styles.cardTitle} numberOfLines={2}>
-                    {activity.titulo}
-                </Text>
-                <View style={[styles.categoryBadge, { backgroundColor: catColor }]}>
-                    <Text style={styles.categoryText}>{activity.categoria}</Text>
-                </View>
-            </View>
-
-            {/* Descripción */}
-            {activity.descripcion ? (
-                <Text style={styles.cardDesc} numberOfLines={2}>
-                    {activity.descripcion}
-                </Text>
-            ) : null}
-
-            {/* Separador */}
-            <View style={styles.divider} />
-
-            {/* Meta */}
-            <View style={styles.cardMeta}>
-                <View style={styles.metaRow}>
-                    <Calendar size={13} color={theme.colors.textTertiary} />
-                    <Text style={styles.metaText}>
-                        {format(startDate, "d 'de' MMMM yyyy", { locale: es })}
-                    </Text>
-                </View>
-                <View style={styles.metaRow}>
-                    <Users size={13} color={theme.colors.textTertiary} />
-                    <Text style={styles.metaText}>
-                        {activity.plazas} plazas disponibles
-                    </Text>
-                </View>
-                {activity.ubicacion ? (
-                    <View style={styles.metaRow}>
-                        <MapPin size={13} color={theme.colors.textTertiary} />
-                        <Text style={styles.metaText} numberOfLines={1}>
-                            {activity.ubicacion}
-                        </Text>
-                    </View>
-                ) : null}
-            </View>
-
-            {/* Footer: botón inscribirse */}
-            <View style={styles.cardFooter}>
-                <TouchableOpacity
-                    style={[styles.enrollBtn, { backgroundColor: theme.colors.primary }]}
-                    onPress={onPress}
-                    activeOpacity={0.8}
-                >
-                    <Text style={styles.enrollBtnText}>Inscribirse</Text>
-                </TouchableOpacity>
-            </View>
-        </View>
-    );
-}
-
 export default function ActivitiesScreen() {
     const navigation = useNavigation<Nav>();
-    const { isAdminOrEditor } = useAuthStore();
+    const { isAdminOrEditor, profile } = useAuthStore();
     const [selectedCat, setSelectedCat] = useState<ActivityCategory | 'Todas'>('Todas');
 
     const { data: activities, isLoading, refetch, isRefetching } = useQuery({
@@ -115,25 +39,31 @@ export default function ActivitiesScreen() {
         queryFn: () => activitiesService.getActivities(selectedCat),
     });
 
+    const greet =
+        profile?.nombre ? `Hola, ${profile.nombre}` : 'Bienvenid@';
+
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
-
-            {/* ── Header ── */}
             <View style={styles.header}>
-                <View>
-                    <Text style={styles.headerTitle}>Actividades</Text>
-                    <Text style={styles.headerSub}>Descubre y apúntate</Text>
+                <View style={styles.brandRow}>
+                    <Logo size={28} />
+                    <Text style={styles.brand}>fevadis</Text>
                 </View>
-                <TouchableOpacity
-                    style={styles.myRegBtn}
+                <Pressable
+                    style={({ pressed }) => [styles.myRegBtn, pressed && { opacity: 0.7 }]}
                     onPress={() => navigation.navigate('MyRegistrations')}
                 >
-                    <ClipboardList size={18} color={theme.colors.primary} />
-                    <Text style={styles.myRegBtnText}>Las mías</Text>
-                </TouchableOpacity>
+                    <ClipboardList size={14} color={theme.colors.primaryDark} />
+                    <Text style={styles.myRegText}>Las mías</Text>
+                </Pressable>
             </View>
 
-            {/* ── Filtros ── */}
+            <View style={styles.hello}>
+                <Text style={styles.helloGreeting}>{greet}</Text>
+                <Text style={styles.helloTitle}>Actividades</Text>
+                <Text style={styles.helloSub}>Descubre y apúntate a lo que viene</Text>
+            </View>
+
             <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -142,30 +72,20 @@ export default function ActivitiesScreen() {
             >
                 {CATEGORIES.map((cat) => {
                     const active = selectedCat === cat;
-                    const color = cat === 'Todas'
-                        ? theme.colors.primary
-                        : (CATEGORY_COLORS[cat] ?? theme.colors.primary);
                     return (
-                        <TouchableOpacity
+                        <Pressable
                             key={cat}
-                            style={[
-                                styles.filterChip,
-                                active && { backgroundColor: color, borderColor: color },
-                            ]}
+                            style={[styles.chip, active && styles.chipActive]}
                             onPress={() => setSelectedCat(cat)}
                         >
-                            <Text style={[
-                                styles.filterChipText,
-                                active && styles.filterChipTextActive,
-                            ]}>
+                            <Text style={[styles.chipText, active && styles.chipTextActive]}>
                                 {cat}
                             </Text>
-                        </TouchableOpacity>
+                        </Pressable>
                     );
                 })}
             </ScrollView>
 
-            {/* ── Lista ── */}
             <FlatList
                 data={activities}
                 keyExtractor={(item) => item.id}
@@ -175,8 +95,8 @@ export default function ActivitiesScreen() {
                     <RefreshControl
                         refreshing={isRefetching}
                         onRefresh={refetch}
-                        colors={[theme.colors.primary]}
                         tintColor={theme.colors.primary}
+                        colors={[theme.colors.primary]}
                     />
                 }
                 renderItem={({ item }) => (
@@ -196,7 +116,6 @@ export default function ActivitiesScreen() {
                 }
             />
 
-            {/* ── FAB admin ── */}
             {isAdminOrEditor && (
                 <TouchableOpacity
                     style={styles.fab}
@@ -206,8 +125,9 @@ export default function ActivitiesScreen() {
                             params: { screen: 'AdminHome' },
                         })
                     }
+                    activeOpacity={0.88}
                 >
-                    <Plus color="#fff" size={24} />
+                    <Plus color="#fff" size={22} strokeWidth={2.6} />
                 </TouchableOpacity>
             )}
         </SafeAreaView>
@@ -217,154 +137,102 @@ export default function ActivitiesScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.colors.background },
 
-    // Header
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: theme.spacing.lg,
-        paddingTop: theme.spacing.sm,
-        paddingBottom: theme.spacing.md,
-        backgroundColor: theme.colors.surface,
-        borderBottomWidth: 1,
-        borderBottomColor: theme.colors.border,
+        paddingHorizontal: 18,
+        paddingTop: 8,
+        paddingBottom: 12,
     },
-    headerTitle: {
-        ...theme.typography.h2,
+    brandRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    brand: {
+        fontSize: 17,
+        fontWeight: '800',
         color: theme.colors.text,
-    },
-    headerSub: {
-        ...theme.typography.caption,
-        color: theme.colors.textSecondary,
-        marginTop: 2,
+        letterSpacing: -0.3,
     },
     myRegBtn: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
-        backgroundColor: theme.colors.primary + '15',
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-        borderRadius: theme.borderRadius.full,
+        gap: 5,
+        backgroundColor: theme.colors.primaryLight,
+        paddingHorizontal: 11,
+        paddingVertical: 6,
+        borderRadius: theme.radius.pill,
     },
-    myRegBtnText: {
-        ...theme.typography.label,
-        color: theme.colors.primary,
+    myRegText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: theme.colors.primaryDark,
     },
 
-    // Filtros
+    hello: {
+        paddingHorizontal: 18,
+        paddingBottom: 14,
+    },
+    helloGreeting: {
+        ...theme.typography.caption,
+        color: theme.colors.textSecondary,
+        fontWeight: '600',
+    },
+    helloTitle: {
+        ...theme.typography.display,
+        color: theme.colors.text,
+        marginTop: 2,
+    },
+    helloSub: {
+        ...theme.typography.bodySmall,
+        color: theme.colors.textSecondary,
+        marginTop: 2,
+    },
+
     filterScroll: {
-        backgroundColor: theme.colors.surface,
-        borderBottomWidth: 1,
-        borderBottomColor: theme.colors.border,
-        maxHeight: 54,
+        maxHeight: 46,
     },
     filterRow: {
-        paddingHorizontal: theme.spacing.lg,
-        paddingVertical: 10,
-        gap: 8,
-    },
-    filterChip: {
-        paddingHorizontal: 16,
+        paddingHorizontal: 18,
         paddingVertical: 6,
-        borderRadius: theme.borderRadius.full,
-        borderWidth: 1.5,
-        borderColor: theme.colors.border,
-        backgroundColor: theme.colors.surface,
+        gap: 6,
     },
-    filterChipText: {
-        ...theme.typography.label,
+    chip: {
+        paddingHorizontal: 14,
+        paddingVertical: 7,
+        borderRadius: theme.radius.pill,
+        backgroundColor: theme.colors.surface,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
+    },
+    chipActive: {
+        backgroundColor: theme.colors.text,
+        borderColor: theme.colors.text,
+    },
+    chipText: {
+        fontSize: 12.5,
+        fontWeight: '600',
         color: theme.colors.textSecondary,
     },
-    filterChipTextActive: {
+    chipTextActive: {
         color: '#fff',
     },
 
-    // Lista
     list: {
-        padding: theme.spacing.md,
+        paddingHorizontal: 18,
+        paddingTop: 10,
         paddingBottom: 100,
     },
 
-    // Card
-    card: {
-        backgroundColor: theme.colors.surface,
-        borderRadius: theme.borderRadius.lg,
-        padding: theme.spacing.md,
-        marginBottom: theme.spacing.sm + 4,
-        ...theme.shadow.sm,
-    },
-    cardTop: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        gap: 10,
-        marginBottom: 8,
-    },
-    cardTitle: {
-        ...theme.typography.h4,
-        color: theme.colors.text,
-        flex: 1,
-        lineHeight: 22,
-    },
-    categoryBadge: {
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: theme.borderRadius.full,
-        flexShrink: 0,
-    },
-    categoryText: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: '#fff',
-    },
-    cardDesc: {
-        ...theme.typography.bodySmall,
-        color: theme.colors.textSecondary,
-        lineHeight: 18,
-        marginBottom: 10,
-    },
-    divider: {
-        height: 1,
-        backgroundColor: theme.colors.border,
-        marginVertical: 8,
-    },
-    cardMeta: {
-        gap: 6,
-    },
-    metaRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 7,
-    },
-    metaText: {
-        ...theme.typography.bodySmall,
-        color: theme.colors.textSecondary,
-        flex: 1,
-    },
-    cardFooter: {
-        alignItems: 'flex-end',
-        marginTop: 12,
-    },
-    enrollBtn: {
-        paddingHorizontal: 22,
-        paddingVertical: 9,
-        borderRadius: theme.borderRadius.full,
-    },
-    enrollBtnText: {
-        color: '#fff',
-        fontSize: 13,
-        fontWeight: '700',
-    },
-
-    // FAB
     fab: {
         position: 'absolute',
-        bottom: 28,
-        right: 24,
-        width: 56,
-        height: 56,
-        borderRadius: 28,
+        bottom: 22,
+        right: 20,
+        width: 52,
+        height: 52,
+        borderRadius: 26,
         backgroundColor: theme.colors.primary,
         justifyContent: 'center',
         alignItems: 'center',

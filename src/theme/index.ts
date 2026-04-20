@@ -1,87 +1,152 @@
 export const theme = {
     colors: {
-        primary: '#22C55E',       // Green 500 – vibrante y fresco
-        primaryLight: '#86EFAC',  // Green 300
-        primaryDark: '#16A34A',   // Green 600
-        secondary: '#059669',     // Emerald 600
-        accent: '#F59E0B',        // Amber 500
-        background: '#F2F4F7',    // Fondo gris muy suave
+        // Brand — verde del logo
+        primary: '#7AB13D',        // verde oliva-lima principal
+        primaryDark: '#5F8E2D',    // verde oscuro (pressed / texto)
+        primaryDarker: '#4A6F22',  // máximo contraste
+        primaryLight: '#E8F2D3',   // fondo muy suave con tinte verde
+        primarySoft: '#F3F8E8',    // casi blanco con matiz verde
+        primarySurface: '#FBFDF6', // fondo de pantalla
+
+        // Acento
+        accent: '#F59E0B',
+        accentSoft: '#FEF3C7',
+
+        // Retrocompat
+        secondary: '#14201A',
+
+        // Neutros — ligeramente cálidos
+        background: '#FAFBF7',
         surface: '#FFFFFF',
-        surfaceAlt: '#F8FAFC',
-        text: '#111827',          // Casi negro
-        textSecondary: '#6B7280', // Gris medio
-        textTertiary: '#9CA3AF',  // Gris claro
-        error: '#EF4444',
-        success: '#22C55E',
-        warning: '#F59E0B',
-        border: '#E5E7EB',
-        borderFocus: '#22C55E',
-        // Role colors
-        roleAdmin: '#7C3AED',
-        roleEditor: '#F59E0B',
-        roleVoluntario: '#22C55E',
-        // Status colors
-        statusPending: '#FEF9C3',
-        statusPendingText: '#854D0E',
-        statusAccepted: '#DCFCE7',
-        statusAcceptedText: '#166534',
-        statusRejected: '#FEE2E2',
-        statusRejectedText: '#991B1B',
-        statusWaiting: '#EDE9FE',
-        statusWaitingText: '#5B21B6',
-        // Category colors
-        catOcio: '#3B82F6',        // Blue 500
-        catCampamentos: '#F97316', // Orange 500
-        catFormaciones: '#8B5CF6', // Violet 500
-        catTalleres: '#EC4899',    // Pink 500
+        surfaceAlt: '#F5F7F0',
+        surfaceMuted: '#EEF2E7',
+
+        // Texto
+        text: '#14201A',
+        textSecondary: '#5C6B62',
+        textTertiary: '#9AA89F',
+        textInverse: '#FFFFFF',
+
+        // Semántico
+        error: '#E04F4F',
+        errorSoft: '#FDECEC',
+        success: '#4C9A2A',
+        successSoft: '#E5F3D9',
+        warning: '#E89B15',
+        warningSoft: '#FEF2DC',
+        info: '#3E7CB1',
+        infoSoft: '#E4EEF7',
+
+        // Bordes
+        border: '#E5EBDE',
+        borderStrong: '#D4DBCB',
+        borderFocus: '#7AB13D',
+
+        // Roles
+        roleAdmin: '#6D53C5',
+        roleAdminSoft: '#EDE8FB',
+        roleEditor: '#D48712',
+        roleEditorSoft: '#FDF1D9',
+        roleVoluntario: '#4C9A2A',
+        roleVoluntarioSoft: '#E5F3D9',
+
+        // Estados de inscripción
+        statusPending: '#FEF4D6',
+        statusPendingText: '#8A6410',
+        statusAccepted: '#DEF0CB',
+        statusAcceptedText: '#3E7A1A',
+        statusRejected: '#FBDCDC',
+        statusRejectedText: '#A62F2F',
+        statusWaiting: '#E4E4F8',
+        statusWaitingText: '#4E4696',
+
+        // Categorías de actividad
+        catOcio: '#3E7CB1',
+        catOcioSoft: '#E4EEF7',
+        catCampamentos: '#E87322',
+        catCampamentosSoft: '#FCE5D3',
+        catFormaciones: '#7A52B4',
+        catFormacionesSoft: '#EBE3F7',
+        catTalleres: '#D64C8A',
+        catTalleresSoft: '#FBE0EC',
     },
     spacing: {
+        xxs: 2,
         xs: 4,
-        sm: 8,
-        md: 16,
-        lg: 24,
-        xl: 32,
-        xxl: 48,
-    },
-    borderRadius: {
         sm: 8,
         md: 12,
         lg: 16,
-        xl: 22,
+        xl: 24,
+        xxl: 32,
+        xxxl: 48,
+    },
+    radius: {
+        xs: 6,
+        sm: 8,
+        md: 10,
+        lg: 14,
+        xl: 20,
+        pill: 9999,
+    },
+    // alias retrocompatible
+    borderRadius: {
+        sm: 8,
+        md: 10,
+        lg: 14,
+        xl: 20,
         full: 9999,
     },
     typography: {
-        h1: { fontSize: 30, fontWeight: '800' as const, letterSpacing: -0.5 },
-        h2: { fontSize: 24, fontWeight: '700' as const, letterSpacing: -0.3 },
-        h3: { fontSize: 20, fontWeight: '700' as const },
-        h4: { fontSize: 16, fontWeight: '600' as const },
-        body: { fontSize: 15, fontWeight: '400' as const, lineHeight: 22 },
-        bodySmall: { fontSize: 13, fontWeight: '400' as const, lineHeight: 19 },
-        caption: { fontSize: 12, fontWeight: '400' as const },
-        label: { fontSize: 13, fontWeight: '600' as const, letterSpacing: 0.2 },
-        button: { fontSize: 15, fontWeight: '700' as const },
+        display: { fontSize: 30, fontWeight: '800' as const, letterSpacing: -0.6, lineHeight: 36 },
+        h1: { fontSize: 24, fontWeight: '800' as const, letterSpacing: -0.4, lineHeight: 30 },
+        h2: { fontSize: 20, fontWeight: '700' as const, letterSpacing: -0.2, lineHeight: 26 },
+        h3: { fontSize: 17, fontWeight: '700' as const, lineHeight: 22 },
+        h4: { fontSize: 15, fontWeight: '700' as const, lineHeight: 20 },
+        body: { fontSize: 14, fontWeight: '400' as const, lineHeight: 20 },
+        bodyStrong: { fontSize: 14, fontWeight: '600' as const, lineHeight: 20 },
+        bodySmall: { fontSize: 13, fontWeight: '400' as const, lineHeight: 18 },
+        caption: { fontSize: 12, fontWeight: '500' as const, lineHeight: 16 },
+        overline: { fontSize: 11, fontWeight: '700' as const, letterSpacing: 0.8, lineHeight: 14 },
+        label: { fontSize: 12, fontWeight: '600' as const, letterSpacing: 0.2, lineHeight: 16 },
+        button: { fontSize: 14, fontWeight: '700' as const, letterSpacing: 0.1 },
     },
     shadow: {
+        none: {},
         xs: {
-            shadowColor: '#000',
+            shadowColor: '#1A2416',
             shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.03,
+            shadowOpacity: 0.04,
             shadowRadius: 2,
             elevation: 1,
         },
         sm: {
-            shadowColor: '#1F2937',
+            shadowColor: '#1A2416',
             shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.06,
+            shadowOpacity: 0.05,
             shadowRadius: 6,
-            elevation: 3,
+            elevation: 2,
         },
         md: {
-            shadowColor: '#1F2937',
-            shadowOffset: { width: 0, height: 4 },
+            shadowColor: '#1A2416',
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: 0.08,
+            shadowRadius: 16,
+            elevation: 4,
+        },
+        lg: {
+            shadowColor: '#1A2416',
+            shadowOffset: { width: 0, height: 12 },
             shadowOpacity: 0.1,
-            shadowRadius: 12,
-            elevation: 6,
+            shadowRadius: 28,
+            elevation: 8,
         },
     },
+    // Tamaños de control (para alinear inputs, botones, chips)
+    control: {
+        sm: 32,
+        md: 40,
+        lg: 46,
+    },
 } as const;
+
+export type Theme = typeof theme;

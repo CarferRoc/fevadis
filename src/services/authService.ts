@@ -42,19 +42,17 @@ export async function signInWithDni(
 ): Promise<void> {
     const normalizedDni = formatDni(dni);
 
-    // Resolve email from profiles
-    const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('email')
-        .eq('dni', normalizedDni)
-        .single();
+    // Resolve email via SECURITY DEFINER RPC (no direct SELECT on profiles
+    // so the login flow works under strict RLS with publishable/anon key).
+    const { data: email, error: rpcError } = await supabase.rpc('get_email_by_dni', {
+        p_dni: normalizedDni,
+    });
 
-    if (profileError || !profile?.email) {
-        throw new Error('No existe ningún usuario con ese DNI');
-    }
+    if (rpcError) throw new Error(rpcError.message);
+    if (!email) throw new Error('No existe ningún usuario con ese DNI');
 
     const { error } = await supabase.auth.signInWithPassword({
-        email: profile.email,
+        email,
         password,
     });
 

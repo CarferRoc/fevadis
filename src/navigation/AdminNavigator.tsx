@@ -19,6 +19,7 @@ import AdminRewardsScreen from '../screens/admin/AdminRewardsScreen';
 import AdminRewardFormScreen from '../screens/admin/AdminRewardFormScreen';
 import AdminGroupChatsScreen from '../screens/admin/AdminGroupChatsScreen';
 import AdminCreateGroupChatScreen from '../screens/admin/AdminCreateGroupChatScreen';
+import AdminInfoScreen from '../screens/admin/AdminInfoScreen';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { theme } from '../theme';
 
@@ -81,6 +82,7 @@ export default function AdminNavigator() {
             <Stack.Screen name="AdminRewardForm" component={AdminRewardFormScreen} options={{ title: 'Gestión de Recompensa' }} />
             <Stack.Screen name="AdminGroupChats" component={AdminGroupChatsScreen} options={{ title: 'Chats Grupales' }} />
             <Stack.Screen name="AdminCreateGroupChat" component={AdminCreateGroupChatScreen} options={{ title: 'Nuevo Grupo' }} />
+            <Stack.Screen name="AdminInfo" component={AdminInfoScreen} options={{ title: 'Información' }} />
         </Stack.Navigator>
     );
 }
