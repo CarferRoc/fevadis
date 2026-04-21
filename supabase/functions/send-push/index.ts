@@ -4,11 +4,14 @@
 // Recibe eventos desde los triggers Postgres (fan_out_push) y manda la
 // notificación correspondiente a todos los tokens FCM objetivo.
 //
-// Secrets requeridos (supabase secrets set ...):
-//   SB_URL                     = https://<project>.supabase.co
-//   SB_SERVICE_ROLE            = service_role key (para leer push_tokens)
-//   SERVICE_SECRET             = debe coincidir con app.settings.edge_service_secret
-//   FIREBASE_SERVICE_ACCOUNT   = JSON del service account de Firebase (una sola línea)
+// Secrets requeridos:
+//   SB_URL                  = https://<project>.supabase.co
+//   SB_SERVICE_ROLE         = service_role key de Supabase
+//   SERVICE_SECRET          = coincide con app_settings.edge_service_secret
+//   FIREBASE_PROJECT_ID     = p.ej. fevadis-e7855
+//   FIREBASE_CLIENT_EMAIL   = firebase-adminsdk-xxxx@<project>.iam.gserviceaccount.com
+//   FIREBASE_PRIVATE_KEY    = contenido del campo "private_key" del JSON de Firebase
+//                             (con \n literales o newlines reales — se normaliza)
 //
 // NO expongas esta función públicamente sin el header x-service-secret.
 
@@ -18,15 +21,16 @@ import { SignJWT, importPKCS8 } from 'https://esm.sh/jose@5.9.6';
 const SB_URL = Deno.env.get('SB_URL')!;
 const SB_SERVICE_ROLE = Deno.env.get('SB_SERVICE_ROLE')!;
 const SERVICE_SECRET = Deno.env.get('SERVICE_SECRET')!;
-const FIREBASE_SERVICE_ACCOUNT = Deno.env.get('FIREBASE_SERVICE_ACCOUNT')!;
 
-interface FcmSA {
-    project_id: string;
-    client_email: string;
-    private_key: string;
-}
+const FIREBASE_PROJECT_ID = Deno.env.get('FIREBASE_PROJECT_ID')!;
+const FIREBASE_CLIENT_EMAIL = Deno.env.get('FIREBASE_CLIENT_EMAIL')!;
+// El valor puede venir con "\n" literal (copiado del JSON) o con newlines
+// reales; normalizamos a newlines reales para que importPKCS8 lo acepte.
+const FIREBASE_PRIVATE_KEY = (Deno.env.get('FIREBASE_PRIVATE_KEY') ?? '').replace(
+    /\\n/g,
+    '\n'
+);
 
-const sa: FcmSA = JSON.parse(FIREBASE_SERVICE_ACCOUNT);
 const supabase = createClient(SB_URL, SB_SERVICE_ROLE, {
     auth: { persistSession: false },
 });
@@ -37,13 +41,13 @@ async function getAccessToken(): Promise<string> {
     const now = Math.floor(Date.now() / 1000);
     if (cachedToken && cachedToken.exp - 60 > now) return cachedToken.token;
 
-    const privateKey = await importPKCS8(sa.private_key, 'RS256');
+    const privateKey = await importPKCS8(FIREBASE_PRIVATE_KEY, 'RS256');
     const jwt = await new SignJWT({
         scope: 'https://www.googleapis.com/auth/firebase.messaging',
     })
         .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
-        .setIssuer(sa.client_email)
-        .setSubject(sa.client_email)
+        .setIssuer(FIREBASE_CLIENT_EMAIL)
+        .setSubject(FIREBASE_CLIENT_EMAIL)
         .setAudience('https://oauth2.googleapis.com/token')
         .setIssuedAt(now)
         .setExpirationTime(now + 3600)
@@ -74,7 +78,7 @@ interface Payload {
 async function sendToTokens(tokens: string[], payload: Payload) {
     if (tokens.length === 0) return;
     const accessToken = await getAccessToken();
-    const endpoint = `https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`;
+    const endpoint = `https://fcm.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/messages:send`;
 
     await Promise.all(
         tokens.map(async (token) => {
