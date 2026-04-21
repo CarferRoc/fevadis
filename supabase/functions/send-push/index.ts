@@ -24,11 +24,46 @@ const SERVICE_SECRET = Deno.env.get('SERVICE_SECRET')!;
 
 const FIREBASE_PROJECT_ID = Deno.env.get('FIREBASE_PROJECT_ID')!;
 const FIREBASE_CLIENT_EMAIL = Deno.env.get('FIREBASE_CLIENT_EMAIL')!;
-// El valor puede venir con "\n" literal (copiado del JSON) o con newlines
-// reales; normalizamos a newlines reales para que importPKCS8 lo acepte.
-const FIREBASE_PRIVATE_KEY = (Deno.env.get('FIREBASE_PRIVATE_KEY') ?? '').replace(
-    /\\n/g,
-    '\n'
+
+// Normaliza la private key: acepta valor copiado del JSON (con \n literales),
+// con newlines reales, con comillas envolventes, o en una sola línea.
+function normalizePrivateKey(raw: string): string {
+    let key = raw.trim();
+    if (
+        (key.startsWith('"') && key.endsWith('"')) ||
+        (key.startsWith("'") && key.endsWith("'"))
+    ) {
+        key = key.slice(1, -1);
+    }
+    // Convierte \n literales (dos chars: \ y n) a saltos reales.
+    key = key.replace(/\\n/g, '\n').replace(/\\r/g, '');
+    // Si vino "todo en una línea" sin ningún salto, reconstruimos el PEM
+    // insertando saltos canónicos alrededor del header/footer y cada 64
+    // chars del body base64.
+    if (!key.includes('\n')) {
+        const m = key.match(
+            /-----BEGIN PRIVATE KEY-----\s*([A-Za-z0-9+/=\s]+?)\s*-----END PRIVATE KEY-----/
+        );
+        if (m) {
+            const body = m[1].replace(/\s+/g, '');
+            const chunked = body.match(/.{1,64}/g)?.join('\n') ?? body;
+            key = `-----BEGIN PRIVATE KEY-----\n${chunked}\n-----END PRIVATE KEY-----\n`;
+        }
+    }
+    return key;
+}
+
+const FIREBASE_PRIVATE_KEY = normalizePrivateKey(
+    Deno.env.get('FIREBASE_PRIVATE_KEY') ?? ''
+);
+
+// Diagnóstico inicial (no expone la clave: solo longitud y límites).
+console.log(
+    '[send-push] private key check: length=%d starts=%s ends=%s hasNewlines=%s',
+    FIREBASE_PRIVATE_KEY.length,
+    FIREBASE_PRIVATE_KEY.slice(0, 30),
+    FIREBASE_PRIVATE_KEY.slice(-30),
+    FIREBASE_PRIVATE_KEY.includes('\n')
 );
 
 const supabase = createClient(SB_URL, SB_SERVICE_ROLE, {
