@@ -74,6 +74,28 @@ export async function requestPushToken(): Promise<string | null> {
         { scope: '/firebase-cloud-messaging-push-scope' }
     );
 
+    // Espera a que el SW esté ACTIVO antes de pedir el token.
+    // Sin esto, PushManager.subscribe falla con AbortError.
+    if (!registration.active) {
+        await new Promise<void>((resolve) => {
+            const worker = registration.installing ?? registration.waiting;
+            if (!worker) {
+                // Fallback: dale un margen al browser
+                setTimeout(resolve, 500);
+                return;
+            }
+            const onChange = () => {
+                if (worker.state === 'activated') {
+                    worker.removeEventListener('statechange', onChange);
+                    resolve();
+                }
+            };
+            worker.addEventListener('statechange', onChange);
+            // Timeout de seguridad por si nunca llega a 'activated'
+            setTimeout(resolve, 3000);
+        });
+    }
+
     try {
         const token = await getToken(m, {
             vapidKey: VAPID_KEY,
