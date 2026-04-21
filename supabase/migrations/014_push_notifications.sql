@@ -97,31 +97,29 @@ $$;
 
 
 -- ─── 4. Trigger: nuevo mensaje en chat ───────────────────────
+-- Nota: usamos subconsultas inline (en lugar de DECLARE + %ROWTYPE)
+-- porque el editor SQL de Supabase tiene un parser quisquilloso con
+-- las variables plpgsql locales en SECURITY DEFINER.
 CREATE OR REPLACE FUNCTION public.on_message_insert_push()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-DECLARE
-    v_chat           public.chats%ROWTYPE;
-    v_sender_profile public.profiles%ROWTYPE;
 BEGIN
-    SELECT * INTO v_chat FROM public.chats WHERE id = NEW.chat_id;
-    IF NOT FOUND THEN RETURN NEW; END IF;
-
-    SELECT * INTO v_sender_profile FROM public.profiles WHERE user_id = NEW.sender_id;
-
-    PERFORM public.fan_out_push(jsonb_build_object(
-        'type', 'message',
-        'chat_id', NEW.chat_id,
-        'chat_name', COALESCE(v_chat.name, 'Mensaje nuevo'),
-        'is_group', COALESCE(v_chat.is_group, false),
-        'participants', to_jsonb(v_chat.participants),
-        'sender_id', NEW.sender_id,
-        'sender_name', COALESCE(v_sender_profile.nombre, '') || ' ' || COALESCE(v_sender_profile.apellidos, ''),
-        'text', NEW.text
-    ));
+    PERFORM public.fan_out_push(
+        jsonb_build_object(
+            'type',         'message',
+            'chat_id',      NEW.chat_id,
+            'chat_name',    (SELECT COALESCE(c.name, 'Mensaje nuevo') FROM public.chats c WHERE c.id = NEW.chat_id),
+            'is_group',     (SELECT COALESCE(c.is_group, false)       FROM public.chats c WHERE c.id = NEW.chat_id),
+            'participants', (SELECT to_jsonb(c.participants)           FROM public.chats c WHERE c.id = NEW.chat_id),
+            'sender_id',    NEW.sender_id,
+            'sender_name',  (SELECT trim(COALESCE(p.nombre, '') || ' ' || COALESCE(p.apellidos, ''))
+                             FROM public.profiles p WHERE p.user_id = NEW.sender_id),
+            'text',         NEW.text
+        )
+    );
     RETURN NEW;
 END;
 $$;
