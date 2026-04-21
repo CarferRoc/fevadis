@@ -12,11 +12,12 @@ export type PushStatus =
     | 'unsupported'      // el navegador no soporta PushAPI
     | 'unconfigured'     // falta VAPID key en env
     | 'denied'           // el usuario rechazó el permiso
-    | 'default'          // todavía no ha decidido
-    | 'granted'          // permiso concedido y token registrado
+    | 'default'          // puede activar, no hay token aún
+    | 'granted'          // permiso concedido Y token guardado en DB
     | 'loading';
 
 const VAPID_CONFIGURED = Boolean(import.meta.env.VITE_FIREBASE_VAPID_KEY);
+const FIREBASE_SW_SCOPE = '/firebase-cloud-messaging-push-scope';
 
 async function saveToken(userId: string, token: string) {
     const { error } = await supabase
@@ -34,14 +35,31 @@ async function saveToken(userId: string, token: string) {
     if (error) throw error;
 }
 
-async function deleteToken(token: string) {
-    await supabase.from('push_tokens').delete().eq('token', token);
+async function hasTokenInDb(userId: string): Promise<boolean> {
+    const { data, error } = await supabase
+        .from('push_tokens')
+        .select('token')
+        .eq('user_id', userId)
+        .limit(1);
+    if (error) return false;
+    return (data?.length ?? 0) > 0;
+}
+
+async function unsubscribeBrowser() {
+    try {
+        const reg = await navigator.serviceWorker.getRegistration(FIREBASE_SW_SCOPE);
+        const subscription = await reg?.pushManager.getSubscription();
+        if (subscription) await subscription.unsubscribe();
+    } catch (e) {
+        console.warn('[push] unsubscribe browser failed', e);
+    }
 }
 
 export function usePushNotifications() {
     const { user } = useAuthStore();
     const [status, setStatus] = useState<PushStatus>('loading');
 
+    // Estado inicial: combina permiso del navegador + existencia de token en DB.
     useEffect(() => {
         let cancelled = false;
         (async () => {
@@ -54,14 +72,23 @@ export function usePushNotifications() {
                 if (!cancelled) setStatus('unsupported');
                 return;
             }
-            if (!cancelled) {
-                setStatus(Notification.permission as PushStatus);
+            const perm = Notification.permission;
+            if (perm === 'denied') {
+                if (!cancelled) setStatus('denied');
+                return;
             }
+            if (perm !== 'granted' || !user) {
+                if (!cancelled) setStatus('default');
+                return;
+            }
+            // Permiso concedido: miramos si realmente hay token en DB.
+            const hasToken = await hasTokenInDb(user.id);
+            if (!cancelled) setStatus(hasToken ? 'granted' : 'default');
         })();
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [user]);
 
     // Listener para mensajes en primer plano (app abierta).
     useEffect(() => {
@@ -87,11 +114,15 @@ export function usePushNotifications() {
         try {
             const token = await requestPushToken();
             if (!token) {
-                setStatus(Notification.permission as PushStatus);
-                if (Notification.permission === 'denied') {
+                const perm = Notification.permission;
+                if (perm === 'denied') {
+                    setStatus('denied');
                     toast.error('Permiso denegado', {
                         description: 'Actívalo desde los ajustes del navegador.',
                     });
+                } else {
+                    setStatus('default');
+                    toast.error('No se pudo obtener el token de FCM');
                 }
                 return;
             }
@@ -105,17 +136,24 @@ export function usePushNotifications() {
     }, [user]);
 
     const disable = useCallback(async () => {
+        setStatus('loading');
         try {
-            // Intentamos obtener el token actual para borrarlo.
-            const token = await requestPushToken();
-            if (token) await deleteToken(token);
+            // 1) Desuscribe el PushManager del navegador para que FCM deje
+            //    de poder entregar a este dispositivo.
+            await unsubscribeBrowser();
+            // 2) Borra TODOS los tokens de este usuario en la BBDD
+            //    (puede haber varios si cambió de navegador / dispositivo).
+            if (user) {
+                await supabase.from('push_tokens').delete().eq('user_id', user.id);
+            }
             setStatus('default');
-            toast.success('Notificaciones desactivadas en este dispositivo');
-        } catch {
-            // aunque falle, marcamos localmente como default
+            toast.success('Notificaciones desactivadas');
+        } catch (e: any) {
+            console.error('[push] disable error', e);
             setStatus('default');
+            toast.error('Error al desactivar', { description: e.message ?? '' });
         }
-    }, []);
+    }, [user]);
 
     return { status, enable, disable };
 }
