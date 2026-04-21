@@ -12,8 +12,8 @@
 //
 // NO expongas esta función públicamente sin el header x-service-secret.
 
-import { createClient } from 'npm:@supabase/supabase-js@2';
-import { SignJWT, importPKCS8 } from 'npm:jose@5';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+import { SignJWT, importPKCS8 } from 'https://esm.sh/jose@5.9.6';
 
 const SB_URL = Deno.env.get('SB_URL')!;
 const SB_SERVICE_ROLE = Deno.env.get('SB_SERVICE_ROLE')!;
