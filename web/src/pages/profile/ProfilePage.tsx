@@ -8,6 +8,7 @@ import { theme } from '../../theme';
 import { FormInput } from '../../components/FormInput';
 import { Button } from '../../components/Button';
 import { RoleBadge } from '../../components/RoleBadge';
+import { NotificationsCard } from '../../components/NotificationsCard';
 import { registrationsService } from '../../services/registrationsService';
 
 export function ProfilePage() {
@@ -128,6 +129,11 @@ export function ProfilePage() {
                 </div>
             ) : (
                 <>
+                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.8, color: theme.colors.textTertiary, margin: '10px 18px 6px', textTransform: 'uppercase' }}>
+                        NOTIFICACIONES
+                    </div>
+                    <NotificationsCard />
+
                     <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.8, color: theme.colors.textTertiary, margin: '10px 18px 6px', textTransform: 'uppercase' }}>
                         AJUSTES
                     </div>

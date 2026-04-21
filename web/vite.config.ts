@@ -59,6 +59,10 @@ export default defineConfig({
             },
             workbox: {
                 globPatterns: ['**/*.{js,css,html,ico,png,svg,webp}'],
+                // No precachear el SW de Firebase — tiene que llegar "fresco"
+                // desde el servidor porque lo registra el SDK de Firebase.
+                globIgnores: ['**/firebase-messaging-sw.js'],
+                navigateFallbackDenylist: [/^\/firebase-cloud-messaging-push-scope/],
                 runtimeCaching: [
                     {
                         urlPattern: /^https:\/\/[a-z0-9-]+\.supabase\.co\/rest\/v1\/.*/i,
