@@ -1,3 +1,6 @@
+// @ts-nocheck — este fichero corre en Deno (Edge Functions), no en Node.
+// VS Code usa el TS del resto del monorepo para tipar, y se queja de los
+// imports remotos y de `Deno.*`. Silenciamos esos falsos errores aquí.
 // deno-lint-ignore-file no-explicit-any
 // Supabase Edge Function: send-push
 //
