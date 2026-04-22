@@ -25,22 +25,47 @@ const SERVICE_SECRET = Deno.env.get('SERVICE_SECRET')!;
 const FIREBASE_PROJECT_ID = Deno.env.get('FIREBASE_PROJECT_ID')!;
 const FIREBASE_CLIENT_EMAIL = Deno.env.get('FIREBASE_CLIENT_EMAIL')!;
 
-// Normaliza la private key: acepta valor copiado del JSON (con \n literales),
-// con newlines reales, con comillas envolventes, o en una sola línea.
+// Normaliza la private key. Acepta:
+//   · el valor completo del JSON (con `\n` literales o newlines reales)
+//   · el JSON entero del service account (extrae el campo private_key)
+//   · el body base64 suelto, sin markers PEM
+//   · con comillas envolventes
 function normalizePrivateKey(raw: string): string {
     let key = raw.trim();
+
+    // Si pegaste el JSON entero, sacamos el campo.
+    if (key.startsWith('{')) {
+        try {
+            const parsed = JSON.parse(key);
+            if (typeof parsed.private_key === 'string') key = parsed.private_key;
+        } catch {
+            /* no era JSON válido, seguimos */
+        }
+    }
+
+    // Comillas envolventes por error.
     if (
         (key.startsWith('"') && key.endsWith('"')) ||
         (key.startsWith("'") && key.endsWith("'"))
     ) {
         key = key.slice(1, -1);
     }
-    // Convierte \n literales (dos chars: \ y n) a saltos reales.
+
+    // `\n` literales → saltos reales.
     key = key.replace(/\\n/g, '\n').replace(/\\r/g, '');
-    // Si vino "todo en una línea" sin ningún salto, reconstruimos el PEM
-    // insertando saltos canónicos alrededor del header/footer y cada 64
-    // chars del body base64.
-    if (!key.includes('\n')) {
+
+    // Si no hay markers PEM, asumimos que es el body base64 y los añadimos.
+    const hasBegin = key.includes('-----BEGIN PRIVATE KEY-----');
+    const hasEnd = key.includes('-----END PRIVATE KEY-----');
+
+    if (!hasBegin || !hasEnd) {
+        const body = key.replace(/-----BEGIN [^-]+-----/g, '')
+                        .replace(/-----END [^-]+-----/g, '')
+                        .replace(/\s+/g, '');
+        const chunked = body.match(/.{1,64}/g)?.join('\n') ?? body;
+        key = `-----BEGIN PRIVATE KEY-----\n${chunked}\n-----END PRIVATE KEY-----\n`;
+    } else if (!key.includes('\n')) {
+        // Hay markers pero está todo en una línea: troceamos el body.
         const m = key.match(
             /-----BEGIN PRIVATE KEY-----\s*([A-Za-z0-9+/=\s]+?)\s*-----END PRIVATE KEY-----/
         );
