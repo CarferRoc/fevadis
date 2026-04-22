@@ -145,15 +145,21 @@ async function sendToTokens(tokens: string[], payload: Payload) {
 
     await Promise.all(
         tokens.map(async (token) => {
+            // Enviamos SOLO data (sin `notification`). El SW de
+            // firebase-messaging-sw.js dibuja la notificación en
+            // onBackgroundMessage. Si pusiéramos también `notification`,
+            // Firebase la mostraría automáticamente Y dispararía el
+            // handler → 2 notificaciones por push.
             const body = {
                 message: {
                     token,
-                    notification: { title: payload.title, body: payload.body },
                     webpush: {
                         fcm_options: payload.url ? { link: payload.url } : undefined,
                         headers: { Urgency: 'high' },
                     },
                     data: {
+                        title: payload.title,
+                        body: payload.body,
                         ...(payload.url ? { url: payload.url } : {}),
                         ...(payload.tag ? { tag: payload.tag } : {}),
                     },
