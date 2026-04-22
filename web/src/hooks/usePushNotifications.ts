@@ -20,6 +20,16 @@ const VAPID_CONFIGURED = Boolean(import.meta.env.VITE_FIREBASE_VAPID_KEY);
 const FIREBASE_SW_SCOPE = '/firebase-cloud-messaging-push-scope';
 
 async function saveToken(userId: string, token: string) {
+    const userAgent = navigator.userAgent.slice(0, 255);
+    // Limpia tokens anteriores del MISMO navegador/usuario. Firebase puede
+    // emitir un token nuevo tras re-registrar el SW o rotar la VAPID; sin
+    // esto, los stale se quedan en DB y recibes pushes duplicados.
+    await supabase
+        .from('push_tokens')
+        .delete()
+        .eq('user_id', userId)
+        .eq('user_agent', userAgent)
+        .neq('token', token);
     const { error } = await supabase
         .from('push_tokens')
         .upsert(
@@ -27,7 +37,7 @@ async function saveToken(userId: string, token: string) {
                 user_id: userId,
                 token,
                 platform: 'web',
-                user_agent: navigator.userAgent.slice(0, 255),
+                user_agent: userAgent,
                 last_seen_at: new Date().toISOString(),
             },
             { onConflict: 'token' }
